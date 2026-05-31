@@ -1,0 +1,25 @@
+Single Run Summary
+==================
+dataset: hustack
+instance: tc12
+input: data\hustack\tc12.txt
+algorithm: alns
+n: 6
+k: 2
+feasible: yes
+max_route: 10
+min_route: 9
+total_distance: 19
+balance: 1
+route_lengths: 9 10
+runtime: 5.000013
+iterations: 261490
+return_to_depot: no
+local_search: no
+seed: 99
+status: matched
+reference_max_route: 10
+reference_total_distance: 19
+max_route_gap: 0
+max_route_gap_percent: 0.00
+solution_path: outputs\single_run\tc12_alns_solution.txt
