@@ -1,1 +1,0 @@
-# TSPLIB Outputs

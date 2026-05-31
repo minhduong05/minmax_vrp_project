@@ -1,1 +1,0 @@
-# MTSPLIB Outputs
