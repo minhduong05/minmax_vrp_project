@@ -1,0 +1,21 @@
+instance,n,k,reference_type,objective_max_route,total_distance,amplitude,route_count,route_lengths,return_to_depot,source,source_file,source_max_route,source_total_cost,note
+berlin52,51,2,main,4110,8218,2,2,4108 4110,yes,MTSPLIB MinMaxMTSP tours,berlin52(m=2)-tours.txt,4110.21,8217.94,main CPLEX tour; objective re-evaluated on integer matrix
+berlin52,51,3,main,3245,9587,91,3,3154 3188 3245,yes,MTSPLIB MinMaxMTSP tours,berlin52(m=3)-tours.txt,3244.37,9591.15,main CPLEX tour; objective re-evaluated on integer matrix
+berlin52,51,5,main,2441,12082,71,5,2370 2420 2418 2433 2441,yes,MTSPLIB MinMaxMTSP tours,berlin52(m=5)-tours.txt,2441.39,12084.90,main CPLEX tour; objective re-evaluated on integer matrix
+berlin52,51,7,main,2440,16770,211,7,2380 2439 2419 2429 2434 2229 2440,yes,MTSPLIB MinMaxMTSP tours,berlin52(m=7)-tours.txt,2440.92,16768.79,main CPLEX tour; objective re-evaluated on integer matrix
+eil51,50,2,main,223,443,3,2,223 220,yes,MTSPLIB MinMaxMTSP tours,eil51(m=2)-tours.txt,222.73,444.33,main CPLEX tour; objective re-evaluated on integer matrix
+eil51,50,3,main,159,474,3,3,159 159 156,yes,MTSPLIB MinMaxMTSP tours,eil51(m=3)-tours.txt,159.57,477.15,main CPLEX tour; objective re-evaluated on integer matrix
+eil51,50,5,main,124,613,3,5,121 122 123 123 124,yes,MTSPLIB MinMaxMTSP tours,eil51(m=5)-tours.txt,123.96,615.19,main CPLEX tour; objective re-evaluated on integer matrix
+eil51,50,7,main,112,760,14,7,98 111 108 110 112 112 109,yes,MTSPLIB MinMaxMTSP tours,eil51(m=7)-tours.txt,112.07,762.83,main CPLEX tour; objective re-evaluated on integer matrix
+eil51,50,7,starred,112,776,4,7,111 108 111 112 112 112 110,yes,MTSPLIB MinMaxMTSP tours,eil51(m=7)-tours_.txt,112.46,777.33,starred CPLEX tour; objective re-evaluated on integer matrix
+eil76,75,2,main,279,556,2,2,277 279,yes,MTSPLIB MinMaxMTSP tours,eil76(m=2)-tours.txt,280.85,561.48,main CPLEX tour; objective re-evaluated on integer matrix
+eil76,75,3,main,195,581,3,3,192 195 194,yes,MTSPLIB MinMaxMTSP tours,eil76(m=3)-tours.txt,197.34,587.65,main CPLEX tour; objective re-evaluated on integer matrix
+eil76,75,5,main,149,742,1,5,148 148 148 149 149,yes,MTSPLIB MinMaxMTSP tours,eil76(m=5)-tours.txt,150.30,748.43,main CPLEX tour; objective re-evaluated on integer matrix
+eil76,75,7,main,140,958,9,7,137 131 139 136 140 139 136,yes,MTSPLIB MinMaxMTSP tours,eil76(m=7)-tours.txt,139.62,964.69,main CPLEX tour; objective re-evaluated on integer matrix
+rat99,98,2,main,726,1451,1,2,726 725,yes,MTSPLIB MinMaxMTSP tours,rat99(m=2)-tours.txt,728.71,1456.95,main CPLEX tour; objective re-evaluated on integer matrix
+rat99,98,3,main,585,1744,10,3,575 585 584,yes,MTSPLIB MinMaxMTSP tours,rat99(m=3)-tours.txt,587.17,1751.95,main CPLEX tour; objective re-evaluated on integer matrix
+rat99,98,3,starred,595,1770,9,3,586 595 589,yes,MTSPLIB MinMaxMTSP tours,rat99(m=3)-tours_.txt,597.55,1780.48,starred CPLEX tour; objective re-evaluated on integer matrix
+rat99,98,5,main,468,2331,4,5,467 467 464 465 468,yes,MTSPLIB MinMaxMTSP tours,rat99(m=5)-tours.txt,469.25,2336.22,main CPLEX tour; objective re-evaluated on integer matrix
+rat99,98,5,starred,531,2645,7,5,524 528 531 531 531,yes,MTSPLIB MinMaxMTSP tours,rat99(m=5)-tours_.txt,531.87,2647.85,starred CPLEX tour; objective re-evaluated on integer matrix
+rat99,98,7,main,444,3068,23,7,444 443 437 442 438 443 421,yes,MTSPLIB MinMaxMTSP tours,rat99(m=7)-tours.txt,443.91,3074.30,main CPLEX tour; objective re-evaluated on integer matrix
+rat99,98,7,starred,536,3686,47,7,536 533 532 532 536 489 528,yes,MTSPLIB MinMaxMTSP tours,rat99(m=7)-tours_.txt,537.59,3688.91,starred CPLEX tour; objective re-evaluated on integer matrix

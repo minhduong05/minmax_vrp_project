@@ -1,0 +1,35 @@
+[project]
+name = "minmax-vrp-alns"
+version = "0.1.0"
+description = "Adaptive Large Neighborhood Search for the Min-Max Vehicle Routing mini project"
+readme = "README.md"
+requires-python = ">=3.11,<3.14"
+authors = [
+  { name = "Mini Project Team" }
+]
+dependencies = [
+  "ortools>=9.10,<10.0"
+]
+
+[project.optional-dependencies]
+dev = [
+  "pytest>=8.0",
+  "ruff>=0.8.0",
+]
+
+[project.scripts]
+minmax-vrp = "minmax_vrp.cli:main"
+
+[build-system]
+requires = ["hatchling>=1.25"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["minmax_vrp"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
