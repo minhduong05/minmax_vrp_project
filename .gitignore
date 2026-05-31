@@ -17,12 +17,6 @@ build/
 dist/
 *.egg-info/
 
-# Local outputs and logs
-outputs/**/*.csv
-outputs/**/*.txt
-outputs/**/*.log
-!outputs/**/README.md
-
 # Editor/OS files
 .DS_Store
 Thumbs.db
