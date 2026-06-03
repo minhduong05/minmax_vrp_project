@@ -5,7 +5,7 @@ import copy
 import sys
 
 # hyperpara
-TIME_LIMIT = 38
+TIME_LIMIT = 3.8
 RANDOM_SEED = 42
 MAX_SHAKE_LEVEL = 5
 CANDIDATE_LIMIT = 24  # tham lam

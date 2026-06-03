@@ -1,0 +1,17 @@
+instance,n,k,max_route,reference_max_route,max_route_gap_percent,total_distance,reference_total_distance,total_distance_gap_percent,status,runtime
+berlin52_k2,51,2,4206,4110,2.34,8412,8218,2.36,worse_max,3.8
+berlin52_k3,51,3,3149,3245,-2.96,9422,9587,-1.72,better_max,3.8
+berlin52_k5,51,5,2440,2441,-0.04,11976,12082,-0.88,better_max,3.8
+berlin52_k7,51,7,2440,2440,0.0,15184,16770,-9.46,matched,3.801
+eil51_k2,50,2,224,223,0.45,446,443,0.68,worse_max,3.8
+eil51_k3,50,3,164,159,3.14,487,474,2.74,worse_max,3.801
+eil51_k5,50,5,118,124,-4.84,566,613,-7.67,better_max,3.8
+eil51_k7,50,7,112,112,0.0,699,760,-8.03,matched,3.8
+eil76_k2,75,2,282,279,1.08,563,556,1.26,worse_max,3.799
+eil76_k3,75,3,199,195,2.05,596,581,2.58,worse_max,3.8
+eil76_k5,75,5,144,149,-3.36,711,742,-4.18,better_max,3.8
+eil76_k7,75,7,126,140,-10.0,859,958,-10.33,better_max,3.8
+rat99_k2,98,2,689,726,-5.1,1378,1451,-5.03,better_max,3.8
+rat99_k3,98,3,530,585,-9.4,1586,1744,-9.06,better_max,3.801
+rat99_k5,98,5,457,468,-2.35,2270,2331,-2.62,better_max,3.799
+rat99_k7,98,7,440,444,-0.9,3007,3068,-1.99,better_max,3.8
