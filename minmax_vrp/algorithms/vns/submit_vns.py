@@ -5,7 +5,7 @@ import copy
 import sys
 
 # hyperpara
-TIME_LIMIT = 38
+TIME_LIMIT = 3.8
 RANDOM_SEED = 42
 MAX_SHAKE_LEVEL = 5
 CANDIDATE_LIMIT = 24  # tham lam
@@ -169,10 +169,17 @@ def two_opt_delta(route, startPos, endPos, d, include_return_to_depot=True):
     Số chi phí thay đổi khi dao nguoc 1 đoạn từ startPos tới endPos
     """
 
-    new_route = route[:startPos] + route[startPos : endPos + 1][::-1] + route[endPos + 1 :]
-    return route_length(new_route, d, include_return_to_depot) - route_length(
-        route, d, include_return_to_depot
-    )
+    # ma trận đối xứng nên các cạnh nội bộ của đoạn đảo không đổi -> chỉ còn 2 cạnh biên (O(1))
+    prev = route[startPos - 1]
+    s = route[startPos]
+    e = route[endPos]
+
+    if endPos < len(route) - 1:
+        next_node = route[endPos + 1]
+        return d[prev][e] + d[s][next_node] - d[prev][s] - d[e][next_node]
+    if include_return_to_depot:
+        return d[prev][e] + d[s][0] - d[prev][s] - d[e][0]
+    return d[prev][e] - d[prev][s]
 
 
 # VND
@@ -227,9 +234,7 @@ def best_relocate(routes, instance, deadline, include_return_to_depot=True):
                     save = insertion_delta(route_dst, point, j, d, include_return_to_depot)
                     dst_new_len = lengths[dst] + save
 
-                    obj_new = objective_from_two(
-                        lengths, src, src_new_len, dst, dst_new_len
-                    )
+                    obj_new = objective_from_two(lengths, src, src_new_len, dst, dst_new_len)
                     if best_move is None or obj_new < best_move[0]:
                         best_move = (obj_new, i, src, j, dst)
 
@@ -276,9 +281,7 @@ def best_swap(routes, instance, deadline, include_return_to_depot=True):
                     delta_dst = replace_delta(route_dst, j, point_src, d, include_return_to_depot)
                     dst_new_len = lengths[dst] + delta_dst
 
-                    obj_new = objective_from_two(
-                        lengths, src, src_new_len, dst, dst_new_len
-                    )
+                    obj_new = objective_from_two(lengths, src, src_new_len, dst, dst_new_len)
 
                     if best_move is None or obj_new < best_move[0]:
                         best_move = (obj_new, i, src, j, dst)
@@ -359,7 +362,7 @@ def vnd(routes, instance, deadline, include_return_to_depot=True):
             new_routes = best_relocate(routes, instance, deadline, include_return_to_depot)
         elif L == 2:
             new_routes = best_swap(routes, instance, deadline, include_return_to_depot)
-        elif L == 3:
+        else:
             new_routes = best_two_opt(routes, instance, deadline, include_return_to_depot)
 
         if new_routes is not None:
@@ -449,9 +452,7 @@ def build_initial(instance, rng, deadline, include_return_to_depot=True):
 
         for r_idx in order:
             route = routes[r_idx]
-            other_max = max(
-                (lengths[i] for i in range(instance.k) if i != r_idx), default=0.0
-            )
+            other_max = max((lengths[i] for i in range(instance.k) if i != r_idx), default=0.0)
 
             for pos in candidate_positions(route, rng):
                 delta = insertion_delta(route, point, pos, d, include_return_to_depot)
@@ -469,7 +470,7 @@ def build_initial(instance, rng, deadline, include_return_to_depot=True):
     return routes
 
 
-def shake(routes, instance, k, rng):
+def shake(routes, k, rng):
     new_routes = copy.deepcopy(routes)
     for _ in range(k):
         valid_src = [idx for idx, r in enumerate(new_routes) if len(r) > 1]
@@ -501,7 +502,7 @@ def solve(instance, include_return_to_depot=True):
     while time.perf_counter() < deadline:
         k = 1
         while k <= k_max and time.perf_counter() < deadline:
-            shaken = shake(best_routes, instance, k, rng)
+            shaken = shake(best_routes, k, rng)
             local_opt = vnd(shaken, instance, deadline, include_return_to_depot)
             local_obj = objective_from_lengths(
                 all_routes_length(local_opt, instance.distance, include_return_to_depot)
