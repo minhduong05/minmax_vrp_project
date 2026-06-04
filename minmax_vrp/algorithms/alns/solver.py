@@ -7,7 +7,7 @@ from .adaptive import AdaptiveSelector
 from .construction import build_greedy_balanced
 from .destroy import default_destroy_operators
 from .local_search import improve
-from ...models import Instance, Solution, better
+from ...models import Distance, Instance, Solution, better
 from .repair import default_repair_operators
 
 
@@ -23,7 +23,7 @@ class ALNSConfig:
     segment_length: int = 50
     use_local_search: bool = False
     local_search_rounds: int = 2
-    include_return_to_depot: bool = False
+    include_return_to_depot: bool = True
 
     reward_global_best: float = 10.0
     reward_current_improved: float = 5.0
@@ -36,7 +36,7 @@ class ALNSResult:
     best: Solution
     iterations: int
     runtime: float
-    best_objective: tuple[int, int, int]
+    best_objective: tuple[Distance, Distance, Distance]
     destroy_weights: dict[str, float]
     repair_weights: dict[str, float]
 

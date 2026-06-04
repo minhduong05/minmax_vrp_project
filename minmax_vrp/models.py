@@ -1,5 +1,7 @@
 from dataclasses import dataclass
 
+Distance = float
+
 
 @dataclass(frozen=True)
 class Instance:
@@ -14,7 +16,7 @@ class Instance:
 
     n: int
     k: int
-    distance: list[list[int]]
+    distance: list[list[Distance]]
 
     def __post_init__(self) -> None:
         if self.n < 0:
@@ -35,11 +37,11 @@ class Instance:
 
 @dataclass
 class Evaluation:
-    max_route_length: int
-    total_distance: int
-    balance: int
+    max_route_length: Distance
+    total_distance: Distance
+    balance: Distance
 
-    def as_tuple(self) -> tuple[int, int, int]:
+    def as_tuple(self) -> tuple[Distance, Distance, Distance]:
         """Lexicographic objective: first minimize max route, then total, then balance."""
         return (self.max_route_length, self.total_distance, self.balance)
 
@@ -52,7 +54,7 @@ class Solution:
     """
 
     routes: list[list[int]]
-    include_return_to_depot: bool = False
+    include_return_to_depot: bool = True
 
     def copy(self) -> "Solution":
         copied_routes = []
@@ -68,17 +70,17 @@ class Solution:
                     points.append(node)
         return points
 
-    def route_length(self, route: list[int], d: list[list[int]]) -> int:
+    def route_length(self, route: list[int], d: list[list[Distance]]) -> Distance:
         if len(route) <= 1:
-            return 0
-        length = 0
+            return 0.0
+        length = 0.0
         for i in range(len(route) - 1):
             length += d[route[i]][route[i + 1]]
         if self.include_return_to_depot:
             length += d[route[-1]][0]
         return length
 
-    def route_lengths(self, instance: Instance) -> list[int]:
+    def route_lengths(self, instance: Instance) -> list[Distance]:
         lengths = []
         for route in self.routes:
             lengths.append(self.route_length(route, instance.distance))

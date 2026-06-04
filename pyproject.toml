@@ -1,7 +1,7 @@
 [project]
 name = "minmax-vrp-alns"
 version = "0.1.0"
-description = "Adaptive Large Neighborhood Search for the Min-Max Vehicle Routing mini project"
+description = "Min-Max VRP solver that parses raw benchmark data in memory"
 readme = "README.md"
 requires-python = ">=3.11,<3.14"
 authors = [
@@ -26,6 +26,7 @@ build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
 packages = ["minmax_vrp"]
+include = ["parser.py", "run.py"]
 
 [tool.ruff]
 line-length = 100

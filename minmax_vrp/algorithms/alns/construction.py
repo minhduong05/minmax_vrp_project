@@ -1,10 +1,10 @@
 import random
 
-from ...models import Instance, Solution
+from ...models import Distance, Instance, Solution
 from .operators_utils import insertion_delta
 
 
-def build_round_robin(instance: Instance, include_return_to_depot: bool = False) -> Solution:
+def build_round_robin(instance: Instance, include_return_to_depot: bool = True) -> Solution:
     routes = []
     for _ in range(instance.k):
         routes.append([0])
@@ -15,7 +15,7 @@ def build_round_robin(instance: Instance, include_return_to_depot: bool = False)
 
 def build_greedy_balanced(
     instance: Instance,
-    include_return_to_depot: bool = False,
+    include_return_to_depot: bool = True,
     seed=None,
 ) -> Solution:
     """Construct a solution by minimizing the current min-max objective after each insertion.
@@ -34,7 +34,7 @@ def build_greedy_balanced(
         lengths.append(0)
 
     # Seed up to K routes with one pickup point nearest to depot to avoid too many empty routes.
-    def distance_from_depot(point: int) -> int:
+    def distance_from_depot(point: int) -> Distance:
         return instance.distance[0][point]
 
     points.sort(key=distance_from_depot)
@@ -77,7 +77,10 @@ def build_greedy_balanced(
     return Solution(routes, include_return_to_depot)
 
 
-def _insertion_score_is_better(candidate_score: tuple[int, int, int], best_score: tuple[int, int, int]) -> bool:
+def _insertion_score_is_better(
+    candidate_score: tuple[Distance, Distance, Distance],
+    best_score: tuple[Distance, Distance, Distance],
+) -> bool:
     if candidate_score[0] != best_score[0]:
         return candidate_score[0] < best_score[0]
     if candidate_score[1] != best_score[1]:

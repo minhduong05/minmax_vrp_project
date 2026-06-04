@@ -2,14 +2,14 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 
-from ..models import Instance, Solution
+from ..models import Distance, Instance, Solution
 
 
 @dataclass
 class AlgorithmConfig:
     time_limit: float = 10.0
     seed: int = 99
-    include_return_to_depot: bool = False
+    include_return_to_depot: bool = True
     use_local_search: bool = False
     local_search_rounds: int = 2
 
@@ -25,7 +25,7 @@ class AlgorithmResult:
     algorithm: str
     runtime: float
     iterations: int = 1
-    best_objective: tuple[int, int, int] = (0, 0, 0)
+    best_objective: tuple[Distance, Distance, Distance] = (0.0, 0.0, 0.0)
     stats: dict[str, object] = field(default_factory=dict)
 
 

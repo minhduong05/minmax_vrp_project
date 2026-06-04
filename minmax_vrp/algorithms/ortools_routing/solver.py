@@ -4,7 +4,7 @@ import time
 
 from ortools.constraint_solver import pywrapcp, routing_enums_pb2
 
-from ...models import Instance, Solution
+from ...models import Distance, Instance, Solution
 from ..base import AlgorithmConfig, AlgorithmResult, SolverAlgorithm
 from ..greedy_balanced import GreedyBalancedAlgorithm
 
@@ -39,9 +39,10 @@ def _solve_with_ortools(
     manager = pywrapcp.RoutingIndexManager(instance.n + 1, instance.k, 0)
     routing = pywrapcp.RoutingModel(manager)
 
+    distance_scale = 1000
     max_distance = 0
     for row in instance.distance:
-        row_max = max(row)
+        row_max = max(_scaled_distance(value, distance_scale) for value in row)
         if row_max > max_distance:
             max_distance = row_max
 
@@ -49,8 +50,10 @@ def _solve_with_ortools(
         from_node = manager.IndexToNode(from_index)
         to_node = manager.IndexToNode(to_index)
         if to_node == 0:
+            if config.include_return_to_depot and from_node != 0:
+                return _scaled_distance(instance.distance[from_node][0], distance_scale)
             return 0
-        return instance.distance[from_node][to_node]
+        return _scaled_distance(instance.distance[from_node][to_node], distance_scale)
 
     transit_callback_index = routing.RegisterTransitCallback(transit_callback)
     routing.SetArcCostEvaluatorOfAllVehicles(transit_callback_index)
@@ -86,7 +89,7 @@ def _solve_with_ortools(
         }
 
     routes = []
-    route_lengths: list[int] = []
+    route_lengths: list[Distance] = []
     for vehicle_idx in range(instance.k):
         index = routing.Start(vehicle_idx)
         route = [0]
@@ -116,15 +119,23 @@ def _fallback_solution(instance: Instance, config: AlgorithmConfig) -> Solution:
     return fallback
 
 
-def _route_length(route: list[int], distance: list[list[int]], include_return_to_depot: bool) -> int:
+def _route_length(
+    route: list[int],
+    distance: list[list[Distance]],
+    include_return_to_depot: bool,
+) -> Distance:
     if len(route) <= 1:
-        return 0
-    length = 0
+        return 0.0
+    length = 0.0
     for idx in range(len(route) - 1):
         length += distance[route[idx]][route[idx + 1]]
     if include_return_to_depot:
         length += distance[route[-1]][0]
     return length
+
+
+def _scaled_distance(value: Distance, scale: int) -> int:
+    return max(0, int(round(value * scale)))
 
 
 def _set_time_limit(search_parameters: pywrapcp.RoutingSearchParameters, time_limit: float) -> None:

@@ -1,6 +1,13 @@
 from pathlib import Path
 
-from .models import Instance, Solution
+from .models import Distance, Instance, Solution
+
+
+def format_distance(value: Distance) -> str:
+    """Keep integer-looking values compact while preserving real distances."""
+    if value == int(value):
+        return str(int(value))
+    return f"{value:.12g}"
 
 
 def read_instance(path: str | Path) -> Instance:
@@ -20,9 +27,9 @@ def read_instance(path: str | Path) -> Instance:
     expected = 2 + (n + 1) * (n + 1)
     if len(tokens) < expected:
         raise ValueError(f"input has {len(tokens)} tokens, expected at least {expected}")
-    values = []
+    values: list[Distance] = []
     for token in tokens[2:expected]:
-        values.append(int(token))
+        values.append(float(token))
 
     distance = []
     row_size = n + 1
@@ -50,3 +57,9 @@ def format_solution(solution: Solution) -> str:
 
 def write_solution(solution: Solution, path: str | Path) -> None:
     Path(path).write_text(format_solution(solution) + "\n", encoding="utf-8")
+
+
+def write_instance(instance: Instance, path: str | Path) -> None:
+    lines = [f"{instance.n} {instance.k}"]
+    lines.extend(" ".join(format_distance(value) for value in row) for row in instance.distance)
+    Path(path).write_text("\n".join(lines) + "\n", encoding="utf-8")
