@@ -1,58 +1,17 @@
 from __future__ import annotations
 
+from .alns import ALNSAlgorithm
 from .base import AlgorithmConfig, SolverAlgorithm
-
-
-def _available_algorithm_classes() -> list[type[SolverAlgorithm]]:
-    classes: list[type[SolverAlgorithm]] = []
-
-    try:
-        from .alns import ALNSAlgorithm
-
-        classes.append(ALNSAlgorithm)
-    except ModuleNotFoundError:
-        pass
-
-    try:
-        from .round_robin import RoundRobinAlgorithm
-
-        classes.append(RoundRobinAlgorithm)
-    except ModuleNotFoundError:
-        pass
-
-    try:
-        from .greedy_balanced import GreedyBalancedAlgorithm
-
-        classes.append(GreedyBalancedAlgorithm)
-    except ModuleNotFoundError:
-        pass
-
-    try:
-        from .nearest_insertion import NearestInsertionAlgorithm
-
-        classes.append(NearestInsertionAlgorithm)
-    except ModuleNotFoundError:
-        pass
-
-    try:
-        from .greedy_2opt_relocate import GreedyTwoOptRelocateAlgorithm
-
-        classes.append(GreedyTwoOptRelocateAlgorithm)
-    except ModuleNotFoundError:
-        pass
-
-    try:
-        from .ortools_routing import OrToolsRoutingAlgorithm
-
-        classes.append(OrToolsRoutingAlgorithm)
-    except ModuleNotFoundError:
-        pass
-
-    return classes
+from .ortools_routing import OrToolsRoutingAlgorithm
+from .tabu_search import TabuSearchAlgorithm
+from .vns import VNSAlgorithm
 
 
 ALGORITHMS: dict[str, type[SolverAlgorithm]] = {
-    algorithm.name: algorithm for algorithm in _available_algorithm_classes()
+    ALNSAlgorithm.name: ALNSAlgorithm,
+    VNSAlgorithm.name: VNSAlgorithm,
+    TabuSearchAlgorithm.name: TabuSearchAlgorithm,
+    OrToolsRoutingAlgorithm.name: OrToolsRoutingAlgorithm,
 }
 ALGORITHM_NAMES = tuple(ALGORITHMS)
 

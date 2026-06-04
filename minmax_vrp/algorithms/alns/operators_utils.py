@@ -1,4 +1,4 @@
-from ...models import Instance, Solution
+from ...models import Distance, Instance, Solution
 
 
 def insertion_delta(
@@ -7,7 +7,7 @@ def insertion_delta(
     position: int,
     instance: Instance,
     include_return_to_depot: bool,
-) -> int:
+) -> Distance:
     """Cost change when inserting a pickup point at route[position].
 
     position is in [1, len(route)] because position 0 is reserved for depot.
@@ -29,7 +29,7 @@ def removal_saving(
     position: int,
     instance: Instance,
     include_return_to_depot: bool,
-) -> int:
+) -> Distance:
     """Length decrease if route[position] is removed. Larger is better to remove."""
     if position <= 0 or position >= len(route):
         raise ValueError("removal position must point to a pickup point in the route")

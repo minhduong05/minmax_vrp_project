@@ -11,12 +11,9 @@ class AlgorithmConfig:
     seed: int = 99
     include_return_to_depot: bool = True
     use_local_search: bool = False
-    local_search_rounds: int = 2
 
     q_min_ratio: float = 0.05
     q_max_ratio: float = 0.20
-    q_min_cap: int = 6
-    q_max_cap: int = 24
 
 
 @dataclass

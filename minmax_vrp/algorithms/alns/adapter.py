@@ -18,10 +18,6 @@ class ALNSAlgorithm(SolverAlgorithm):
                 seed=self.config.seed,
                 q_min_ratio=self.config.q_min_ratio,
                 q_max_ratio=self.config.q_max_ratio,
-                q_min_cap=self.config.q_min_cap,
-                q_max_cap=self.config.q_max_cap,
-                use_local_search=self.config.use_local_search,
-                local_search_rounds=self.config.local_search_rounds,
                 include_return_to_depot=self.config.include_return_to_depot,
             )
         )

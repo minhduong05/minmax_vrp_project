@@ -31,7 +31,7 @@ def build_greedy_balanced(
     lengths = []
     for _ in range(instance.k):
         routes.append([0])
-        lengths.append(0)
+        lengths.append(0.0)
 
     # Seed up to K routes with one pickup point nearest to depot to avoid too many empty routes.
     def distance_from_depot(point: int) -> Distance:
@@ -55,7 +55,7 @@ def build_greedy_balanced(
         best_choice = None
         for r_idx, route in enumerate(routes):
             old_length = lengths[r_idx]
-            other_max = 0
+            other_max = 0.0
             for other_route, other_length in enumerate(lengths):
                 if other_route != r_idx and other_length > other_max:
                     other_max = other_length

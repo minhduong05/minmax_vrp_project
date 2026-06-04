@@ -35,12 +35,9 @@ def build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument("--time-limit", type=float, default=10.0)
     parser.add_argument("--seed", type=int, default=99)
-    parser.add_argument("--local-search", action="store_true")
-    parser.add_argument("--local-search-rounds", type=int, default=2)
+    parser.add_argument("--local-search", action="store_true", help="Enable Tabu post-optimization")
     parser.add_argument("--q-min-ratio", type=float, default=0.05)
     parser.add_argument("--q-max-ratio", type=float, default=0.20)
-    parser.add_argument("--q-min-cap", type=int, default=6)
-    parser.add_argument("--q-max-cap", type=int, default=24)
     parser.add_argument(
         "--no-return-to-depot",
         action="store_true",
@@ -66,11 +63,8 @@ def main(argv: list[str] | None = None) -> int:
         seed=args.seed,
         include_return_to_depot=include_return_to_depot,
         use_local_search=args.local_search,
-        local_search_rounds=args.local_search_rounds,
         q_min_ratio=args.q_min_ratio,
         q_max_ratio=args.q_max_ratio,
-        q_min_cap=args.q_min_cap,
-        q_max_cap=args.q_max_cap,
     )
     result = create_solver(args.algorithm, config).solve(instance)
     feasible = result.best.is_feasible(instance)

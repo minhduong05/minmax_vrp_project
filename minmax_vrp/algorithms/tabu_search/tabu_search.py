@@ -1,248 +1,327 @@
+from __future__ import annotations
+
 import copy
 import sys
+import time
 from collections import deque
+from typing import Iterable
+
+from ...models import Distance
+
+Objective = tuple[Distance, Distance, Distance]
 
 
 def read_input():
-    N, K = map(int, input().split())
+    tokens = sys.stdin.read().replace("\ufeff", "").split()
+    if not tokens:
+        return None
 
-    d = []
-    for i in range(N + 1):
-        row  = list(map(int, input().split()))
-        d.append(row)
+    n = int(tokens[0])
+    k = int(tokens[1])
+    size = n + 1
+    values = tokens[2:]
+    if len(values) != size * size:
+        raise ValueError(f"expected {size * size} distance values, got {len(values)}")
 
-    return N, K, d
+    distance = []
+    idx = 0
+    for _ in range(size):
+        row = []
+        for _ in range(size):
+            row.append(float(values[idx]))
+            idx += 1
+        distance.append(row)
 
-# tính tổng khoảng cách của một tuyến đường
-def route_lenght(route, d):
-    sum = 0
+    return n, k, distance
+
+
+def route_lenght(
+    route: list[int],
+    d: list[list[Distance]],
+    include_return_to_depot: bool = True,
+) -> Distance:
+    if len(route) <= 1:
+        return 0.0
+
+    length = 0.0
     for i in range(len(route) - 1):
-        sum += d[route[i]][route[i + 1]]
-    return sum
+        length += d[route[i]][route[i + 1]]
+    if include_return_to_depot:
+        length += d[route[-1]][0]
+    return length
 
-# lấy list độ dài các tuyến đường
-def all_lengths(routes, d):
-    return [route_lenght(route, d) for route in routes]
 
-# lấy tuyến đường dài nhất
-def longest_route(routes, d):
-    return max(route_lenght(route, d) for  route in routes)
+def all_lengths(
+    routes: list[list[int]],
+    d: list[list[Distance]],
+    include_return_to_depot: bool = True,
+) -> list[Distance]:
+    return [route_lenght(route, d, include_return_to_depot) for route in routes]
 
-# khỏi tạo phương án ban đầu
-def init(N, K, d):
-    routes = [[0] for _ in range(K)]
-    lenghts = [0] * K
 
-    # sort các điểm giao hàng theo thứ tự giảm dần của khoảng cách từ kho
-    points = sorted(range(1, N + 1), key=lambda i: -d[0][i])
+def objective_from_lengths(lengths: Iterable[Distance]) -> Objective:
+    values = list(lengths)
+    if not values:
+        return (0.0, 0.0, 0.0)
+    max_len = max(values)
+    return (max_len, sum(values), max_len - min(values))
 
-    for p in points:
-        k = lenghts.index(max(lenghts))
-        last = routes[k][-1]
-        routes[k].append(p)
-        lenghts[k] += d[last][p] # di tu last -> p
+
+def objective(
+    routes: list[list[int]],
+    d: list[list[Distance]],
+    include_return_to_depot: bool = True,
+) -> Objective:
+    return objective_from_lengths(all_lengths(routes, d, include_return_to_depot))
+
+
+def longest_route(
+    routes: list[list[int]],
+    d: list[list[Distance]],
+    include_return_to_depot: bool = True,
+) -> Distance:
+    return objective(routes, d, include_return_to_depot)[0]
+
+
+def insertion_delta(
+    route: list[int],
+    point: int,
+    position: int,
+    d: list[list[Distance]],
+    include_return_to_depot: bool = True,
+) -> Distance:
+    prev = route[position - 1]
+    if position < len(route):
+        next_node = route[position]
+        return d[prev][point] + d[point][next_node] - d[prev][next_node]
+    if include_return_to_depot:
+        return d[prev][point] + d[point][0] - d[prev][0]
+    return d[prev][point]
+
+
+def init(
+    n: int,
+    k: int,
+    d: list[list[Distance]],
+    include_return_to_depot: bool = True,
+) -> list[list[int]]:
+    routes = [[0] for _ in range(k)]
+    lengths = [0.0] * k
+    points = sorted(range(1, n + 1), key=lambda point: d[0][point], reverse=True)
+
+    for point in points:
+        best = None
+        total = sum(lengths)
+        for route_idx, route in enumerate(routes):
+            other_max = max(
+                (lengths[idx] for idx in range(k) if idx != route_idx), default=0.0
+            )
+            for position in range(1, len(route) + 1):
+                delta = insertion_delta(route, point, position, d, include_return_to_depot)
+                new_len = lengths[route_idx] + delta
+                score = (max(other_max, new_len), total + delta, new_len)
+                if best is None or score < best[0]:
+                    best = (score, route_idx, position, delta)
+
+        if best is None:
+            continue
+        _, route_idx, position, delta = best
+        routes[route_idx].insert(position, point)
+        lengths[route_idx] += delta
+
     return routes
 
-# các toán tử di chuyển giữa các tuyến đường hay ở trong chính tuyến đường đó
 
-# Lấy điểm p ở vị trí pos1 của tuyến r1 rồi chèn vào sau vị trí pos2 của tuyến r2
-def apply_relocate(routes, r1, pos1, r2, pos2):
+def apply_relocate(
+    routes: list[list[int]],
+    src: int,
+    src_pos: int,
+    dst: int,
+    dst_pos: int,
+) -> list[list[int]]:
     new_routes = copy.deepcopy(routes)
-    p = new_routes[r1].pop(pos1)
-    new_routes[r2].insert(pos2 + 1, p)
+    point = new_routes[src].pop(src_pos)
+    if src == dst and dst_pos >= src_pos:
+        dst_pos -= 1
+    new_routes[dst].insert(dst_pos + 1, point)
     return new_routes
 
-#tính kết quả sau khi thay đổi
-def delta_relocate(routes, r1, pos1, r2, pos2, d):
-    route1 = routes[r1]
-    route2 = routes[r2]
-    p = route1[pos1]
 
-    old_len1 = route_lenght(route1, d)
-    new_r1 = route1[:pos1] + route2[pos1 + 1:]
-    new_len1 = route_lenght(new_r1, d)
-
-    old_len2 = route_lenght(route2, d)
-    rew_r2 = route2[:pos2 + 1] + [p] + route1[pos2 + 1:]
-    new_len2 = route_lenght(rew_r2, d)
-
-    lengths = all_lengths(routes, d)
-    lengths[r1] = new_len1
-    lengths[r2] = new_len2
-    return max(lengths)
-
-# hoán đổi vị trí của pos1 của tuyến r1 với vị trí pos2 của tuyến r2
-def apply_swap(routes, r1, pos1, r2, pos2):
+def apply_swap(
+    routes: list[list[int]],
+    r1: int,
+    pos1: int,
+    r2: int,
+    pos2: int,
+) -> list[list[int]]:
     new_routes = copy.deepcopy(routes)
     new_routes[r1][pos1], new_routes[r2][pos2] = new_routes[r2][pos2], new_routes[r1][pos1]
     return new_routes
 
-#tính kết quả sau khi thay đổi
-def delta_swap(routes, r1, pos1, r2, pos2, d):
-    route1 = routes[r1]
-    route2 = routes[r2]
-    p = route1[pos1]
-    q = route2[pos2]
 
-    new_r1 = route1[:pos1] + [q] + route1[pos1 + 1:]
-    new_r2 = route2[:pos2] + [p] + route2[pos2 + 1:]
-
-    lengths = all_lengths(routes, d)
-    lengths[r1] = route_lenght(new_r1, d)
-    lengths[r2] = route_lenght(new_r2, d)
-    return max(lengths)
-
-# đảo ngược một đoạn [i...j] trong 1 tuyến r
-def apply_reverse(routes, r, i, j):
+def apply_reverse(routes: list[list[int]], route_idx: int, start: int, end: int):
     new_routes = copy.deepcopy(routes)
-    new_routes[r][i: j + 1] = new_routes[r][i: j + 1][::-1]
+    new_routes[route_idx][start : end + 1] = reversed(
+        new_routes[route_idx][start : end + 1]
+    )
     return new_routes
 
-# tính kết quả sau khi thay đổi
-def delta_reverse(routes, r, i, j, d):
-    route = routes[r]
-    new_r = route[:i] + route[i: j + 1][::-1] + route[j + 1:]
 
-    lengths = all_lengths(routes, d)
-    lengths[r] = route_lenght(new_r, d)
-    return max(lengths)
-
-# tạo các láng giềng (candidates)
-def generative_candidates(routes, d, max_candidates=200):
-    lengths = all_lengths(routes, d)
-    longest_idx = lengths.index(max(lengths))
-    K = len(routes)
-
+def generative_candidates(
+    routes: list[list[int]],
+    d: list[list[Distance]],
+    max_candidates: int = 200,
+    include_return_to_depot: bool = True,
+    deadline: float | None = None,
+):
+    lengths = all_lengths(routes, d, include_return_to_depot)
+    longest_idx = max(range(len(routes)), key=lambda idx: lengths[idx])
     candidates = []
 
-    # relocate
-    r1 = longest_idx
-    for pos1 in range(1, len(routes[r1])):
-        p = routes[r1][pos1]
-        for r2 in range(K):
-            if r2 == r1: continue
-            for pos2 in range(len(routes[r2])):
-                new_f = delta_relocate(routes, r1, pos1, r2, pos2, d)
-                tabu_attr = ('relocate', p, r1) # lấy p từ r1 cho sang tuyến khác
-                move_params = (r1, pos1, r2, pos2)
-                candidates.append((new_f, 'relocate', tabu_attr, move_params))
+    src = longest_idx
+    for src_pos in range(1, len(routes[src])):
+        if deadline is not None and time.perf_counter() >= deadline:
+            return candidates[:max_candidates]
+        point = routes[src][src_pos]
+        for dst in range(len(routes)):
+            if dst == src:
+                continue
+            for dst_pos in range(len(routes[dst])):
+                new_routes = apply_relocate(routes, src, src_pos, dst, dst_pos)
+                new_obj = objective(new_routes, d, include_return_to_depot)
+                tabu_attr = ("relocate", point, dst)
+                candidates.append((new_obj, "relocate", tabu_attr, (src, src_pos, dst, dst_pos)))
 
-    #swap
-    for pos1 in range(1, len(routes[r1])):
-        p = routes[r1][pos1]
-        for r2 in range(K):
-            if r2 == r1: continue
-            for pos2 in range(1, len(routes[r2])):
-                q = routes[r2][pos2]
-                new_f = delta_swap(routes, r1, pos1, r2, pos2, d)
-                tabu_attr = ('swap', min(p, q), max(p, q))
-                move_params = (r1, pos1, r2, pos2)
-                candidates.append((new_f, 'swap', tabu_attr, move_params))
+    for pos1 in range(1, len(routes[src])):
+        if deadline is not None and time.perf_counter() >= deadline:
+            return candidates[:max_candidates]
+        point1 = routes[src][pos1]
+        for dst in range(len(routes)):
+            if dst == src:
+                continue
+            for pos2 in range(1, len(routes[dst])):
+                point2 = routes[dst][pos2]
+                new_routes = apply_swap(routes, src, pos1, dst, pos2)
+                new_obj = objective(new_routes, d, include_return_to_depot)
+                tabu_attr = ("swap", min(point1, point2), max(point1, point2))
+                candidates.append((new_obj, "swap", tabu_attr, (src, pos1, dst, pos2)))
 
-    #reverse
-    for i in range(1, len(routes[r1]) - 1):
-        for j in range(i + 1, len(routes[r1])):
-            new_f = delta_reverse(routes, r1, i, j, d)
-            tabu_attr = ('reverse', i, j)
-            move_params = (r1, i, j)
-            candidates.append((new_f, 'reverse', tabu_attr, move_params))
+    for start in range(1, len(routes[src]) - 1):
+        if deadline is not None and time.perf_counter() >= deadline:
+            return candidates[:max_candidates]
+        for end in range(start + 1, len(routes[src])):
+            new_routes = apply_reverse(routes, src, start, end)
+            new_obj = objective(new_routes, d, include_return_to_depot)
+            tabu_attr = ("reverse", tuple(routes[src][start : end + 1]))
+            candidates.append((new_obj, "reverse", tabu_attr, (src, start, end)))
 
-    candidates.sort(key=lambda x: x[0]) # sắp xếp theo new_f tăng dần
-
+    candidates.sort(key=lambda item: item[0])
     return candidates[:max_candidates]
 
-# tabu search
-def tabu_search(N, K, d, max_inter=1000, tenure=7, max_candidates=200):
-    # khởi tạo lời giải ban đầu
-    routes = init(N, K, d)
-    best_routes = copy.deepcopy(routes)
-    f_best = longest_route(routes, d)
 
-    #tabu list
+def tabu_search(
+    n: int,
+    k: int,
+    d: list[list[Distance]],
+    max_inter: int = 1000,
+    tenure: int = 7,
+    max_candidates: int = 200,
+    include_return_to_depot: bool = True,
+    deadline: float | None = None,
+):
+    routes = init(n, k, d, include_return_to_depot)
+    best_routes = copy.deepcopy(routes)
+    best_obj = objective(best_routes, d, include_return_to_depot)
+
     tabu_set = set()
     tabu_queue = deque()
+    iterations_done = 0
 
-    # lặp
-    for iteration in range(max_inter):
-        candidates = generative_candidates(routes, d, max_candidates)
-
+    for _ in range(max_inter):
+        if deadline is not None and time.perf_counter() >= deadline:
+            break
+        candidates = generative_candidates(
+            routes, d, max_candidates, include_return_to_depot, deadline
+        )
         if not candidates:
             break
 
-        chosen = None
-
-        for (new_f, move_type, tabu_attr, move_params) in candidates:
-            if tabu_attr not in tabu_set:
-                chosen = (new_f, move_type, tabu_attr, move_params)
+        chosen = candidates[0]
+        for candidate in candidates:
+            new_obj, _, tabu_attr, _ = candidate
+            if tabu_attr not in tabu_set or new_obj < best_obj:
+                chosen = candidate
                 break
-            else:
-                if new_f < f_best:
-                    chosen = (new_f, move_type, tabu_attr, move_params)
-                    break
 
-        if chosen is None:
-            chosen = candidates[0]
+        new_obj, move_type, tabu_attr, move_params = chosen
+        if move_type == "relocate":
+            routes = apply_relocate(routes, *move_params)
+        elif move_type == "swap":
+            routes = apply_swap(routes, *move_params)
+        elif move_type == "reverse":
+            routes = apply_reverse(routes, *move_params)
 
-        new_f, move_type, tabu_attr, move_params = chosen
-
-        if move_type == 'relocate':
-            r1, pos1, r2, pos2 = move_params
-            routes = apply_relocate(routes, r1, pos1, r2, pos2)
-        if move_type == 'swap':
-            r1, pos1, r2, pos2 = move_params
-            routes = apply_swap(routes, r1, pos1, r2, pos2)
-        if move_type == 'reverse':
-            r, i, j = move_params
-            routes = apply_reverse(routes, r, i, j)
-
-        current_f = longest_route(routes, d)
-        if current_f < f_best:
-            f_best = current_f
+        current_obj = objective(routes, d, include_return_to_depot)
+        if current_obj < best_obj:
+            best_obj = current_obj
             best_routes = copy.deepcopy(routes)
 
-        # cập nhật tabu list
         tabu_queue.append(tabu_attr)
         tabu_set.add(tabu_attr)
         if len(tabu_queue) > tenure:
             old_attr = tabu_queue.popleft()
             tabu_set.discard(old_attr)
+        iterations_done += 1
 
-    return best_routes, f_best
+    return best_routes, best_obj[0], iterations_done
 
-# tối ưu thứ tự đi tron từng tuyến
-def local_clear(routes, d):
+
+def local_clear(
+    routes: list[list[int]],
+    d: list[list[Distance]],
+    include_return_to_depot: bool = True,
+):
+    routes = copy.deepcopy(routes)
     improved = True
     while improved:
         improved = False
-        for id in range(len(routes)):
-            route = routes[id]
-            if len(route) < 3: continue
-            for i in range(1, len(route) - 1):
-                for j in range(i + 1, len(route)):
-                    old_len = route_lenght(route, d)
-                    new_r = route[:i] + route[i:j + 1][::-1] + route[j + 1:]
-                    new_len = route_lenght(new_r, d)
-                    if new_len < old_len:
-                        routes[id] = new_r
-                        route = new_r
-                        improved = True
+        for route_idx, route in enumerate(routes):
+            if len(route) < 4:
+                continue
+            old_len = route_lenght(route, d, include_return_to_depot)
+            best_route = route
+            best_len = old_len
+            for start in range(1, len(route) - 1):
+                for end in range(start + 1, len(route)):
+                    new_route = route[:start] + route[start : end + 1][::-1] + route[end + 1 :]
+                    new_len = route_lenght(new_route, d, include_return_to_depot)
+                    if new_len < best_len:
+                        best_route = new_route
+                        best_len = new_len
+
+            if best_len < old_len:
+                routes[route_idx] = best_route
+                improved = True
     return routes
 
-def output(routes, d):
-    K = len(routes)
-    print(K)
+
+def output(routes, d, include_return_to_depot: bool = True):
+    print(len(routes))
     for route in routes:
-        lk = len(route)
-        long = route_lenght(route, d)
-        print("long: ", long)
-        print(lk)
-        print(' '.join(map(str, route)))
+        print("length:", route_lenght(route, d, include_return_to_depot))
+        print(len(route))
+        print(" ".join(map(str, route)))
+
 
 def main():
-    N, K, d = read_input()
-    best_routes, f_best = tabu_search(N, K, d)
+    parsed = read_input()
+    if parsed is None:
+        return
+    n, k, d = parsed
+    best_routes, _, _ = tabu_search(n, k, d)
     best_routes = local_clear(best_routes, d)
     output(best_routes, d)
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     main()

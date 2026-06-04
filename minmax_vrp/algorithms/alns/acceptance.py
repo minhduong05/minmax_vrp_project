@@ -2,7 +2,7 @@ import math
 import random
 from dataclasses import dataclass
 
-from ...models import Instance, Solution
+from ...models import Distance, Instance, Solution
 
 
 @dataclass
@@ -19,7 +19,7 @@ class SimulatedAnnealingAcceptance:
     total_weight: float = 1e-6
     temperature: float = 1000.0
 
-    def reset(self, initial_objective: int) -> None:
+    def reset(self, initial_objective: Distance) -> None:
         self.temperature = max(self.initial_temperature, 0.05 * max(1, initial_objective))
 
     def scalar_value(self, solution: Solution, instance: Instance) -> float:

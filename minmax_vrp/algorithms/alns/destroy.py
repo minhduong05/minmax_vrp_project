@@ -1,7 +1,7 @@
 import random
 from dataclasses import dataclass
 
-from ...models import Instance, Solution
+from ...models import Distance, Instance, Solution
 from .operators_utils import removal_saving, remove_pickup_point
 
 
@@ -136,7 +136,7 @@ class RelatedRemoval:
             if not remaining:
                 break
             anchor = rng.choice(removed)
-            def distance_from_anchor(point: int) -> int:
+            def distance_from_anchor(point: int) -> Distance:
                 return instance.distance[anchor][point]
 
             remaining.sort(key=distance_from_anchor)
@@ -149,10 +149,10 @@ class RelatedRemoval:
         return partial, removed
 
 
-def _routes_by_decreasing_length(lengths: list[int]) -> list[int]:
+def _routes_by_decreasing_length(lengths: list[Distance]) -> list[int]:
     route_order = list(range(len(lengths)))
 
-    def route_length(route_index: int) -> int:
+    def route_length(route_index: int) -> Distance:
         return lengths[route_index]
 
     route_order.sort(key=route_length, reverse=True)
@@ -167,7 +167,7 @@ def _best_scored_position(candidates: list[tuple[float, int, int]]) -> tuple[flo
     return best_candidate
 
 
-def _longest_route_index(lengths: list[int]) -> int:
+def _longest_route_index(lengths: list[Distance]) -> int:
     longest = 0
     for route_index in range(1, len(lengths)):
         if lengths[route_index] > lengths[longest]:
@@ -175,7 +175,7 @@ def _longest_route_index(lengths: list[int]) -> int:
     return longest
 
 
-def _longest_non_empty_route(non_empty_routes: list[int], lengths: list[int]) -> int:
+def _longest_non_empty_route(non_empty_routes: list[int], lengths: list[Distance]) -> int:
     longest = non_empty_routes[0]
     for route_index in non_empty_routes[1:]:
         if lengths[route_index] > lengths[longest]:

@@ -1,8 +1,11 @@
 import random
 from dataclasses import dataclass
 
-from ...models import Instance, Solution
+from ...models import Distance, Instance, Solution
 from .operators_utils import insertion_delta
+
+InsertionScore = tuple[Distance, Distance, Distance]
+InsertionChoice = tuple[InsertionScore, int, int, Distance]
 
 
 def _best_insertion_for_point(
@@ -11,7 +14,7 @@ def _best_insertion_for_point(
     instance: Instance,
     alpha: float = 1.0,
     beta: float = 0.0,
-) -> tuple[tuple[float, int, int], int, int, int]:
+) -> InsertionChoice:
     """Return score, route index, insertion position, delta."""
     lengths = solution.route_lengths(instance)
     total = sum(lengths)
@@ -24,11 +27,11 @@ def _best_insertion_for_point_with_state(
     solution: Solution,
     point: int,
     instance: Instance,
-    lengths: list[int],
-    total: int,
+    lengths: list[Distance],
+    total: Distance,
     alpha: float = 1.0,
     beta: float = 0.0,
-) -> tuple[tuple[float, int, int], int, int, int]:
+) -> InsertionChoice:
     """Return best insertion using already computed route lengths."""
     best = None
     for r_idx, route in enumerate(solution.routes):
@@ -195,8 +198,8 @@ class BalancedInsertion:
         return solution
 
 
-def _max_route_length_except(lengths: list[int], skipped_route: int) -> int:
-    best = 0
+def _max_route_length_except(lengths: list[Distance], skipped_route: int) -> Distance:
+    best = 0.0
     for route_index, length in enumerate(lengths):
         if route_index != skipped_route and length > best:
             best = length

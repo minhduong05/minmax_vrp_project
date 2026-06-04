@@ -6,7 +6,6 @@ from .acceptance import SimulatedAnnealingAcceptance
 from .adaptive import AdaptiveSelector
 from .construction import build_greedy_balanced
 from .destroy import default_destroy_operators
-from .local_search import improve
 from ...models import Distance, Instance, Solution, better
 from .repair import default_repair_operators
 
@@ -17,12 +16,8 @@ class ALNSConfig:
     seed: int = 99
     q_min_ratio: float = 0.05
     q_max_ratio: float = 0.20
-    q_min_cap: int = 6
-    q_max_cap: int = 24
     reaction: float = 0.20
     segment_length: int = 50
-    use_local_search: bool = False
-    local_search_rounds: int = 2
     include_return_to_depot: bool = True
 
     reward_global_best: float = 10.0
@@ -72,11 +67,8 @@ class ALNSSolver:
         best_sol = current.copy()
         self.acceptance.reset(best_sol.evaluate(instance).max_route_length)
 
-        # Keep repair neighborhoods bounded on large instances.  The ratios are useful
-        # for small/medium cases, but for N close to 1000 a 20% removal can make one
-        # iteration consume more than the whole contest time limit.
-        q_min = max(1, min(int(self.config.q_min_ratio * instance.n), self.config.q_min_cap))
-        q_max = max(q_min, min(int(self.config.q_max_ratio * instance.n), self.config.q_max_cap))
+        q_min = max(1, min(instance.n, int(self.config.q_min_ratio * instance.n)))
+        q_max = max(q_min, min(instance.n, int(self.config.q_max_ratio * instance.n)))
         iterations = 0
 
         while time.perf_counter() < deadline:
@@ -89,15 +81,6 @@ class ALNSSolver:
             if not removed:
                 continue
             candidate = repair_op(partial, removed, instance, self.rng)
-
-            if self.config.use_local_search:
-                candidate = improve(
-                    candidate,
-                    instance,
-                    self.rng,
-                    max_rounds=self.config.local_search_rounds,
-                    deadline=deadline,
-                )
 
             if not candidate.is_feasible(instance):
                 reward = self.config.reward_rejected

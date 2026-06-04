@@ -1,0 +1,1 @@
+timestamp,algorithm,instance,n,k,seed,time_limit,return_to_depot,checkpoint_type,checkpoint,elapsed_time,iteration,current_max_route,current_total_distance,current_balance,best_max_route,best_total_distance,best_balance,notes

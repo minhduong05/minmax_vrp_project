@@ -6,7 +6,6 @@ from ortools.constraint_solver import pywrapcp, routing_enums_pb2
 
 from ...models import Distance, Instance, Solution
 from ..base import AlgorithmConfig, AlgorithmResult, SolverAlgorithm
-from ..greedy_balanced import GreedyBalancedAlgorithm
 
 
 class OrToolsRoutingAlgorithm(SolverAlgorithm):
@@ -36,10 +35,10 @@ class OrToolsRoutingAlgorithm(SolverAlgorithm):
 def _solve_with_ortools(
     instance: Instance, config: AlgorithmConfig
 ) -> tuple[Solution | None, dict[str, object]]:
+    distance_scale = _distance_scale(instance)
     manager = pywrapcp.RoutingIndexManager(instance.n + 1, instance.k, 0)
     routing = pywrapcp.RoutingModel(manager)
 
-    distance_scale = 1000
     max_distance = 0
     for row in instance.distance:
         row_max = max(_scaled_distance(value, distance_scale) for value in row)
@@ -58,7 +57,8 @@ def _solve_with_ortools(
     transit_callback_index = routing.RegisterTransitCallback(transit_callback)
     routing.SetArcCostEvaluatorOfAllVehicles(transit_callback_index)
 
-    horizon = max(1, instance.n * max_distance)
+    max_arcs_per_route = instance.n + 1 if config.include_return_to_depot else instance.n
+    horizon = max(1, max_arcs_per_route * max_distance)
     routing.AddDimension(
         transit_callback_index,
         0,
@@ -67,7 +67,9 @@ def _solve_with_ortools(
         "Distance",
     )
     distance_dimension = routing.GetDimensionOrDie("Distance")
-    distance_dimension.SetGlobalSpanCostCoefficient(horizon + 1)
+    # Minimize max route first. Arc costs remain active, so total distance breaks
+    # ties after the route span term dominates any possible total-cost difference.
+    distance_dimension.SetGlobalSpanCostCoefficient((instance.k * horizon) + 1)
 
     search_parameters = pywrapcp.DefaultRoutingSearchParameters()
     search_parameters.first_solution_strategy = (
@@ -86,6 +88,7 @@ def _solve_with_ortools(
             "first_solution_strategy": "PARALLEL_CHEAPEST_INSERTION",
             "metaheuristic": "GUIDED_LOCAL_SEARCH",
             "fallback_used": False,
+            "distance_scale": distance_scale,
         }
 
     routes = []
@@ -110,13 +113,42 @@ def _solve_with_ortools(
         "metaheuristic": "GUIDED_LOCAL_SEARCH",
         "max_route_length": max(route_lengths) if route_lengths else 0,
         "fallback_used": False,
+        "distance_scale": distance_scale,
     }
     return solution, stats
 
 
 def _fallback_solution(instance: Instance, config: AlgorithmConfig) -> Solution:
-    fallback = GreedyBalancedAlgorithm(config).solve(instance).best
-    return fallback
+    routes = [[0] for _ in range(instance.k)]
+    lengths = [0.0 for _ in range(instance.k)]
+
+    for point in instance.pickup_points:
+        best_choice: tuple[Distance, int] | None = None
+        for route_index, route in enumerate(routes):
+            candidate = route + [point]
+            candidate_length = _route_length(
+                candidate,
+                instance.distance,
+                config.include_return_to_depot,
+            )
+            other_max = max(
+                (length for idx, length in enumerate(lengths) if idx != route_index),
+                default=0.0,
+            )
+            score = max(other_max, candidate_length)
+            if best_choice is None or score < best_choice[0]:
+                best_choice = (score, route_index)
+
+        assert best_choice is not None
+        _, selected_route = best_choice
+        routes[selected_route].append(point)
+        lengths[selected_route] = _route_length(
+            routes[selected_route],
+            instance.distance,
+            config.include_return_to_depot,
+        )
+
+    return Solution(routes, config.include_return_to_depot)
 
 
 def _route_length(
@@ -136,6 +168,15 @@ def _route_length(
 
 def _scaled_distance(value: Distance, scale: int) -> int:
     return max(0, int(round(value * scale)))
+
+
+def _distance_scale(instance: Instance) -> int:
+    has_fractional_distance = any(
+        value != int(value)
+        for row in instance.distance
+        for value in row
+    )
+    return 1000 if has_fractional_distance else 1
 
 
 def _set_time_limit(search_parameters: pywrapcp.RoutingSearchParameters, time_limit: float) -> None:
