@@ -95,7 +95,7 @@ def greedy_init(N, K, d):
 def apply_relocate(routes, src, src_pos, dst, dst_pos):
     new_routes = copy.deepcopy(routes)
     point = new_routes[src].pop(src_pos)
-    # nếu dời trong cùng tun thì sau khi xoá index bị dịch
+    # nếu dời trong cùng tuyến thì sau khi xoá index bị dịch
     if src == dst and dst_pos >= src_pos:
         dst_pos -= 1
     new_routes[dst].insert(dst_pos + 1, point)
@@ -269,7 +269,7 @@ def main():
         max_inter=800,
         tenure=7,
         max_candidates=200,
-        deadline=None  # đặt ví dụ time.perf_counter() + 60 để giới hạn 60 giây
+        deadline=None
     )
 
     best_routes = local_clear(best_routes, d)
