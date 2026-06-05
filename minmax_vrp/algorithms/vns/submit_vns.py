@@ -486,9 +486,11 @@ def shake(routes, k, rng):
     return new_routes
 
 
-def solve(instance, include_return_to_depot=True):
+def solve(instance, include_return_to_depot=True, return_stats=False):
     rng = random.Random(RANDOM_SEED)
     deadline = time.perf_counter() + TIME_LIMIT
+    iterations = 0
+    outer_iterations = 0
 
     routes = build_initial(instance, rng, deadline, include_return_to_depot)
     routes = vnd(routes, instance, deadline, include_return_to_depot)
@@ -500,8 +502,10 @@ def solve(instance, include_return_to_depot=True):
 
     k_max = MAX_SHAKE_LEVEL
     while time.perf_counter() < deadline:
+        outer_iterations += 1
         k = 1
         while k <= k_max and time.perf_counter() < deadline:
+            iterations += 1
             shaken = shake(best_routes, k, rng)
             local_opt = vnd(shaken, instance, deadline, include_return_to_depot)
             local_obj = objective_from_lengths(
@@ -515,6 +519,11 @@ def solve(instance, include_return_to_depot=True):
             else:
                 k += 1
 
+    if return_stats:
+        return best_routes, {
+            "iterations": iterations,
+            "outer_iterations": outer_iterations,
+        }
     return best_routes
 
 

@@ -21,9 +21,10 @@ class VNSAlgorithm(SolverAlgorithm):
         try:
             submit_vns.TIME_LIMIT = max(0.0, self.config.time_limit)
             submit_vns.RANDOM_SEED = self.config.seed
-            routes = submit_vns.solve(
+            routes, vns_stats = submit_vns.solve(
                 instance,
                 include_return_to_depot=self.config.include_return_to_depot,
+                return_stats=True,
             )
         finally:
             submit_vns.TIME_LIMIT = old_time_limit
@@ -36,7 +37,7 @@ class VNSAlgorithm(SolverAlgorithm):
             best=solution,
             algorithm=self.name,
             runtime=runtime,
-            iterations=1,
+            iterations=vns_stats["iterations"],
             best_objective=solution.evaluate(instance).as_tuple(),
-            stats={"source": "submit_vns"},
+            stats={"source": "submit_vns", **vns_stats},
         )
