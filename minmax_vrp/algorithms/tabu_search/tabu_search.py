@@ -172,7 +172,7 @@ def generate_candidate(routes, d, max_candidates = 200, deadline = None):
 
 # tabu search
 def tabu_search(N, K, d, max_inter=1000, tenure=7, max_candidates=200,
-                include_return_to_depot=False, deadline=None):
+                deadline=None):
     routes = greedy_init(N, K, d)
     best_routes = copy.deepcopy(routes)
     f_best = objective(routes, d)
@@ -229,7 +229,7 @@ def tabu_search(N, K, d, max_inter=1000, tenure=7, max_candidates=200,
     return best_routes, f_best[0], iterations_done
 
 # tối ưu thứ tự ưu tiên
-def local_clear(routes, d, include_return_to_depot=False):
+def local_clear(routes, d):
     routes = copy.deepcopy(routes)
     improved = True
     while improved:

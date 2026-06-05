@@ -1,1 +1,1 @@
-timestamp,dataset,algorithm,instance,n,k,seed,time_limit,return_to_depot,feasible,max_route,total_distance,balance,runtime,iterations,notes
+timestamp,dataset,algorithm,instance,n,k,seed,time_limit,feasible,max_route,total_distance,balance,runtime,iterations,notes

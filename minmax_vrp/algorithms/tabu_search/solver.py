@@ -21,17 +21,15 @@ class TabuSearchAlgorithm(SolverAlgorithm):
             instance.k,
             instance.distance,
             max_inter=max_iterations,
-            include_return_to_depot=self.config.include_return_to_depot,
             deadline=start + max(0.0, self.config.time_limit),
         )
         if self.config.use_local_search:
             routes = local_clear(
                 routes,
                 instance.distance,
-                self.config.include_return_to_depot,
             )
 
-        solution = Solution(routes, self.config.include_return_to_depot)
+        solution = Solution(routes)
         solution.assert_feasible(instance)
         runtime = time.perf_counter() - start
         return AlgorithmResult(

@@ -7,7 +7,7 @@ Thu muc `minmax_vrp/` la package Python chua model du lieu, contract chung cho c
 3. Solver trong `minmax_vrp/algorithms/` nhan `Instance`, tra ve `AlgorithmResult`.
 4. `run.py` in summary va co the ghi solution bang `minmax_vrp.io.write_solution`.
 
-Mac dinh bai toan tinh route dong, tuc la moi tuyen bat dau tu depot `0`, di qua cac diem giao, va tinh ca quang duong quay ve depot. Co the tat bang CLI `--no-return-to-depot`.
+Bai toan hien tai dung route mo: moi tuyen bat dau tu depot `0`, di qua cac diem giao, va khong tinh quang duong quay ve depot.
 
 ## Cay thu muc
 
@@ -98,7 +98,7 @@ Export API chung cua module algorithms:
 
 Dinh nghia contract chung cho tat ca solver:
 
-- `AlgorithmConfig`: cau hinh chung tu CLI, gom time limit, seed, co tinh return-to-depot hay khong, local search cho Tabu, va tham so q theo ti le cho ALNS.
+- `AlgorithmConfig`: cau hinh chung tu CLI, gom time limit, seed, local search cho Tabu, va tham so q theo ti le cho ALNS. Route mo la quy uoc co dinh cua project, khong con la config.
 - `AlgorithmResult`: ket qua chuan hoa, gom best solution, ten thuat toan, runtime, iterations, objective va stats.
 - `SolverAlgorithm`: base class bat buoc solver co method `solve(instance)`.
 
@@ -187,7 +187,7 @@ Adapter va solver OR-Tools:
 - cau hinh dimension `Distance`;
 - toi uu max route bang global span cost coefficient;
 - van giu arc cost lam tie-breaker cho total distance;
-- ho tro route dong/mo qua `include_return_to_depot`;
+- chay theo bai toan route mo cua project;
 - co fallback greedy neu OR-Tools khong tim duoc assignment.
 
 ## `algorithms/tabu_search/`
@@ -203,8 +203,7 @@ Export `TabuSearchAlgorithm`.
 Adapter theo contract chung:
 
 - nhan `AlgorithmConfig`;
-- goi core `tabu_search()`;
-- truyen `include_return_to_depot` va deadline;
+- goi core `tabu_search()` voi deadline;
 - neu bat `--local-search`, goi `local_clear()`;
 - dong goi ket qua thanh `AlgorithmResult`.
 
@@ -216,7 +215,7 @@ Core Tabu Search:
 - sinh candidate tu route dai nhat bang relocate, swap, reverse;
 - dung tabu list de tranh lap lai move;
 - objective la `(max_route, total_distance, balance)`;
-- tinh duoc ca route dong va route mo;
+- tinh route theo bai toan mo, khong cong canh quay ve depot;
 - doc input phu bang `float` neu chay standalone.
 
 ## `algorithms/vns/`
@@ -232,7 +231,7 @@ Export `VNSAlgorithm`.
 Adapter theo contract chung:
 
 - map `AlgorithmConfig.time_limit` va `seed` vao module VNS legacy;
-- truyen `include_return_to_depot`;
+- chay theo quy uoc route mo cua project;
 - kiem tra feasible va dong goi `AlgorithmResult`.
 
 ### `vns/submit_vns.py`
@@ -243,7 +242,7 @@ Core VNS:
 - dung VND voi cac neighborhood relocate, swap, 2-opt;
 - shake nghiem hien tai theo muc do `k`;
 - so sanh bang objective sorted route lengths theo huong Min-Max;
-- tinh duoc ca route dong va route mo;
+- tinh route theo bai toan mo, khong cong canh quay ve depot;
 - dam bao van tao nghiem feasible ngay ca khi time limit rat nho.
 
 ## Ket luan sau khi ra soat

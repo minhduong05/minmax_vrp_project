@@ -83,7 +83,6 @@ output/convergence/2026-06-04_tabu_eil51_seed7.csv
 - `k`
 - `seed`
 - `time_limit`
-- `return_to_depot`
 - `feasible`
 - `max_route`
 - `total_distance`

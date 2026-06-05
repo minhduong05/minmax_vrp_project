@@ -4,18 +4,17 @@ from ...models import Distance, Instance, Solution
 from .operators_utils import insertion_delta
 
 
-def build_round_robin(instance: Instance, include_return_to_depot: bool = True) -> Solution:
+def build_round_robin(instance: Instance) -> Solution:
     routes = []
     for _ in range(instance.k):
         routes.append([0])
     for idx, point in enumerate(instance.pickup_points):
         routes[idx % instance.k].append(point)
-    return Solution(routes, include_return_to_depot)
+    return Solution(routes)
 
 
 def build_greedy_balanced(
     instance: Instance,
-    include_return_to_depot: bool = True,
     seed=None,
 ) -> Solution:
     """Construct a solution by minimizing the current min-max objective after each insertion.
@@ -41,7 +40,7 @@ def build_greedy_balanced(
     for r_idx in range(min(instance.k, len(points))):
         point = points.pop(0)
         routes[r_idx].append(point)
-        lengths[r_idx] = Solution([routes[r_idx]], include_return_to_depot).route_length(
+        lengths[r_idx] = Solution([routes[r_idx]]).route_length(
             routes[r_idx], instance.distance
         )
 
@@ -60,7 +59,7 @@ def build_greedy_balanced(
                 if other_route != r_idx and other_length > other_max:
                     other_max = other_length
             for pos in range(1, len(route) + 1):
-                delta = insertion_delta(route, point, pos, instance, include_return_to_depot)
+                delta = insertion_delta(route, point, pos, instance)
                 new_length = old_length + delta
                 new_max = max(other_max, new_length)
                 new_total = running_total + delta
@@ -69,12 +68,12 @@ def build_greedy_balanced(
                     best_choice = (score, r_idx, pos, delta)
         assert best_choice is not None
         _, r_idx, pos, delta = best_choice
-        delta = insertion_delta(routes[r_idx], point, pos, instance, include_return_to_depot)
+        delta = insertion_delta(routes[r_idx], point, pos, instance)
         routes[r_idx].insert(pos, point)
         lengths[r_idx] += delta
         running_total += delta
 
-    return Solution(routes, include_return_to_depot)
+    return Solution(routes)
 
 
 def _insertion_score_is_better(

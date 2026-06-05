@@ -18,7 +18,6 @@ class ALNSAlgorithm(SolverAlgorithm):
                 seed=self.config.seed,
                 q_min_ratio=self.config.q_min_ratio,
                 q_max_ratio=self.config.q_max_ratio,
-                include_return_to_depot=self.config.include_return_to_depot,
             )
         )
         result = solver.solve(instance)

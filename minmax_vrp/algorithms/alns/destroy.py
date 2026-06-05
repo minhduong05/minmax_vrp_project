@@ -43,7 +43,7 @@ class WorstRemoval:
             for r_idx in route_order:
                 route = partial.routes[r_idx]
                 for pos in range(1, len(route)):
-                    saving = removal_saving(route, pos, instance, partial.include_return_to_depot)
+                    saving = removal_saving(route, pos, instance)
                     noisy = saving * (1.0 + rng.uniform(-self.noise, self.noise))
                     bonus = lengths[r_idx] if self.focus_longest else 0
                     candidates.append((noisy + 0.001 * bonus, r_idx, pos))
@@ -71,7 +71,7 @@ class LongestRouteRemoval:
             if len(route) <= 1:
                 break
             # Remove the most expensive pickup point in the current longest route.
-            pos = _most_expensive_position(route, instance, partial.include_return_to_depot)
+            pos = _most_expensive_position(route, instance)
             removed.append(route.pop(pos))
         rng.shuffle(removed)
         return partial, removed
@@ -183,11 +183,11 @@ def _longest_non_empty_route(non_empty_routes: list[int], lengths: list[Distance
     return longest
 
 
-def _most_expensive_position(route: list[int], instance: Instance, include_return_to_depot: bool) -> int:
+def _most_expensive_position(route: list[int], instance: Instance) -> int:
     best_position = 1
-    best_saving = removal_saving(route, best_position, instance, include_return_to_depot)
+    best_saving = removal_saving(route, best_position, instance)
     for position in range(2, len(route)):
-        saving = removal_saving(route, position, instance, include_return_to_depot)
+        saving = removal_saving(route, position, instance)
         if saving > best_saving:
             best_saving = saving
             best_position = position

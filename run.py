@@ -39,11 +39,6 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--q-min-ratio", type=float, default=0.05)
     parser.add_argument("--q-max-ratio", type=float, default=0.20)
     parser.add_argument(
-        "--no-return-to-depot",
-        action="store_true",
-        help="Use open routes. Default is closed routes: 0 -> ... -> 0.",
-    )
-    parser.add_argument(
         "-o",
         "--output",
         help="Optional path to write the solution route file.",
@@ -56,12 +51,10 @@ def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
     instance_path = Path(args.instance)
     instance = load_instance(instance_path, k=args.k)
-    include_return_to_depot = not args.no_return_to_depot
 
     config = AlgorithmConfig(
         time_limit=args.time_limit,
         seed=args.seed,
-        include_return_to_depot=include_return_to_depot,
         use_local_search=args.local_search,
         q_min_ratio=args.q_min_ratio,
         q_max_ratio=args.q_max_ratio,
@@ -81,7 +74,6 @@ def main(argv: list[str] | None = None) -> int:
     print(f"algorithm: {result.algorithm}")
     print(f"n: {instance.n}")
     print(f"k: {instance.k}")
-    print(f"return_to_depot: {'yes' if include_return_to_depot else 'no'}")
     print(f"feasible: {'yes' if feasible else 'no'}")
     print(f"max_route: {format_distance(objective.max_route_length)}")
     print(f"total_distance: {format_distance(objective.total_distance)}")

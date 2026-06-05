@@ -6,7 +6,6 @@ def insertion_delta(
     point: int,
     position: int,
     instance: Instance,
-    include_return_to_depot: bool,
 ) -> Distance:
     """Cost change when inserting a pickup point at route[position].
 
@@ -17,8 +16,6 @@ def insertion_delta(
     d = instance.distance  # matrix distance
     prev_node = route[position - 1]
     if position == len(route):
-        if include_return_to_depot:
-            return d[prev_node][point] + d[point][0] - d[prev_node][0]
         return d[prev_node][point]
     next_node = route[position]
     return d[prev_node][point] + d[point][next_node] - d[prev_node][next_node]
@@ -28,7 +25,6 @@ def removal_saving(
     route: list[int],
     position: int,
     instance: Instance,
-    include_return_to_depot: bool,
 ) -> Distance:
     """Length decrease if route[position] is removed. Larger is better to remove."""
     if position <= 0 or position >= len(route):
@@ -37,8 +33,6 @@ def removal_saving(
     node = route[position]
     prev_node = route[position - 1]
     if position == len(route) - 1:
-        if include_return_to_depot:
-            return d[prev_node][node] + d[node][0] - d[prev_node][0]
         return d[prev_node][node]
     next_node = route[position + 1]
     return d[prev_node][node] + d[node][next_node] - d[prev_node][next_node]

@@ -18,7 +18,6 @@ class ALNSConfig:
     q_max_ratio: float = 0.20
     reaction: float = 0.20
     segment_length: int = 50
-    include_return_to_depot: bool = True
 
     reward_global_best: float = 10.0
     reward_current_improved: float = 5.0
@@ -60,7 +59,6 @@ class ALNSSolver:
         deadline = start + self.config.time_limit
         current = initial or build_greedy_balanced(
             instance,
-            include_return_to_depot=self.config.include_return_to_depot,
             seed=self.config.seed,
         )
         current.assert_feasible(instance)

@@ -8,10 +8,9 @@ class Instance:
     """Input data for Min-Max Vehicle Routing.
 
     Nodes are indexed from 0..n. Node 0 is the depot. Pickup points are 1..n.
-    The project output format uses K routes; every route starts with 0 and then
-    lists pickup points. Returning to depot is configurable because some VRP
-    variants require it, while the provided mini-project statement only fixes
-    x[1] = 0 for each route.
+    The project output format uses K open routes; every route starts with 0 and
+    then lists pickup points. Route length does not include a return edge to the
+    depot.
     """
 
     n: int
@@ -54,13 +53,11 @@ class Solution:
     """
 
     routes: list[list[int]]
-    include_return_to_depot: bool = True
-
     def copy(self) -> "Solution":
         copied_routes = []
         for route in self.routes:
             copied_routes.append(route[:])
-        return Solution(copied_routes, self.include_return_to_depot)
+        return Solution(copied_routes)
 
     def all_pickup_points(self) -> list[int]:
         points = []
@@ -76,8 +73,6 @@ class Solution:
         length = 0.0
         for i in range(len(route) - 1):
             length += d[route[i]][route[i + 1]]
-        if self.include_return_to_depot:
-            length += d[route[-1]][0]
         return length
 
     def route_lengths(self, instance: Instance) -> list[Distance]:

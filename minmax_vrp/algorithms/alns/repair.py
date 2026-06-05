@@ -38,9 +38,7 @@ def _best_insertion_for_point_with_state(
         old_len = lengths[r_idx]
         other_max = _max_route_length_except(lengths, r_idx)
         for pos in range(1, len(route) + 1):
-            delta = insertion_delta(
-                route, point, pos, instance, solution.include_return_to_depot
-            )
+            delta = insertion_delta(route, point, pos, instance)
             new_len = old_len + delta
             new_max = max(other_max, new_len)
             new_total = total + delta
@@ -114,13 +112,7 @@ class RegretInsertion:
                 for r_idx, route in enumerate(solution.routes):
                     other_max = _max_route_length_except(lengths, r_idx)
                     for pos in range(1, len(route) + 1):
-                        delta = insertion_delta(
-                            route,
-                            point,
-                            pos,
-                            instance,
-                            solution.include_return_to_depot,
-                        )
+                        delta = insertion_delta(route, point, pos, instance)
                         new_len = lengths[r_idx] + delta
                         new_max = max(other_max, new_len)
                         new_total = total + delta

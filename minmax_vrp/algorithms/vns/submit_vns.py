@@ -64,7 +64,7 @@ class Instance:
         self.distance = distance  # ma trận khoảng cách
 
 
-def route_length(route, d, include_return_to_depot=True):
+def route_length(route, d):
     """
        tổng quãng đường của 1 tuyến giao hàng
        route: 1 tuyến giao hàng, danh sách các địa điểm giao hàng
@@ -74,18 +74,16 @@ def route_length(route, d, include_return_to_depot=True):
     if len(route) <= 1:
         return 0
     length = sum(d[route[i]][route[i + 1]] for i in range(len(route) - 1))
-    if include_return_to_depot:
-        length += d[route[-1]][0]
     return length
 
 
-def all_routes_length(routes, d, include_return_to_depot=True):
+def all_routes_length(routes, d):
     """
     tổng quãng đường chô mỗi tuyến -> trả về list
     routes: danh sách k tuyến
     d : ma trận khoảng cách
     """
-    return [route_length(route, d, include_return_to_depot) for route in routes]
+    return [route_length(route, d) for route in routes]
 
 
 # tả về dạng nghiệm dể so sánh với nhau, quantify function
@@ -117,7 +115,7 @@ def objective_from_two(lengths, s, ns_length, d, nd_length):
 # delta evaluation : tối ưu chi phí
 
 
-def insertion_delta(route, point, position, d, include_return_to_depot=True):
+def insertion_delta(route, point, position, d):
     """
     tính số chi phí tăng lên khi chèn point vào vị trí position
     route : tuyến đường
@@ -130,12 +128,10 @@ def insertion_delta(route, point, position, d, include_return_to_depot=True):
     if position < len(route):
         next_node = route[position]
         return d[prev][point] + d[point][next_node] - d[prev][next_node]
-    if include_return_to_depot:
-        return d[prev][point] + d[point][0] - d[prev][0]
     return d[prev][point]
 
 
-def remove_delta(route, position, d, include_return_to_depot=True):
+def remove_delta(route, position, d):
     """
     Sô chi phí giảm bớt khi bỏ 1 diểm ở vị trí position
     """
@@ -145,12 +141,10 @@ def remove_delta(route, position, d, include_return_to_depot=True):
     if position < len(route) - 1:
         next_node = route[position + 1]
         return d[prev][cur] + d[cur][next_node] - d[prev][next_node]
-    if include_return_to_depot:
-        return d[prev][cur] + d[cur][0] - d[prev][0]
     return d[prev][cur]
 
 
-def replace_delta(route, position, point, d, include_return_to_depot=True):
+def replace_delta(route, position, point, d):
     """
     Sô chi phí thay đổi khi thay 1 diểm bằng điểm khác
     """
@@ -159,12 +153,10 @@ def replace_delta(route, position, point, d, include_return_to_depot=True):
     if position < len(route) - 1:
         next_node = route[position + 1]
         return d[prev][point] + d[point][next_node] - d[prev][cur] - d[cur][next_node]
-    if include_return_to_depot:
-        return d[prev][point] + d[point][0] - d[prev][cur] - d[cur][0]
     return d[prev][point] - d[prev][cur]
 
 
-def two_opt_delta(route, startPos, endPos, d, include_return_to_depot=True):
+def two_opt_delta(route, startPos, endPos, d):
     """
     Số chi phí thay đổi khi dao nguoc 1 đoạn từ startPos tới endPos
     """
@@ -177,8 +169,6 @@ def two_opt_delta(route, startPos, endPos, d, include_return_to_depot=True):
     if endPos < len(route) - 1:
         next_node = route[endPos + 1]
         return d[prev][e] + d[s][next_node] - d[prev][s] - d[e][next_node]
-    if include_return_to_depot:
-        return d[prev][e] + d[s][0] - d[prev][s] - d[e][0]
     return d[prev][e] - d[prev][s]
 
 
@@ -186,7 +176,7 @@ def two_opt_delta(route, startPos, endPos, d, include_return_to_depot=True):
 # Các cấu trúc lân cận
 
 
-def best_relocate(routes, instance, deadline, include_return_to_depot=True):
+def best_relocate(routes, instance, deadline):
     """
     Tuyến nào dài nhất ? Rút bớt 1 point đưa cho thằng khác rảnh hơn
     Tìm danh sách tuyến dài nhất  A
@@ -206,7 +196,7 @@ def best_relocate(routes, instance, deadline, include_return_to_depot=True):
     output : routes mới tốt hơn hoặc bằng
     """
     d = instance.distance
-    lengths = all_routes_length(routes, d, include_return_to_depot)
+    lengths = all_routes_length(routes, d)
     # Luwu lai qf, objetive
     current_obj = objective_from_lengths(lengths)
 
@@ -223,7 +213,7 @@ def best_relocate(routes, instance, deadline, include_return_to_depot=True):
             point = route_src[i]
 
             # Tinh độ dài tuyến sau khi rút C ra khỏi  B
-            save = remove_delta(route_src, i, d, include_return_to_depot)
+            save = remove_delta(route_src, i, d)
             src_new_len = lengths[src] - save
             # Nhet no vao cac tuyen khac tru route_src
             for dst in range(len(routes)):
@@ -231,7 +221,7 @@ def best_relocate(routes, instance, deadline, include_return_to_depot=True):
                     continue
                 route_dst = routes[dst]
                 for j in range(1, len(route_dst) + 1):
-                    save = insertion_delta(route_dst, point, j, d, include_return_to_depot)
+                    save = insertion_delta(route_dst, point, j, d)
                     dst_new_len = lengths[dst] + save
 
                     obj_new = objective_from_two(lengths, src, src_new_len, dst, dst_new_len)
@@ -246,7 +236,7 @@ def best_relocate(routes, instance, deadline, include_return_to_depot=True):
     return routes
 
 
-def best_swap(routes, instance, deadline, include_return_to_depot=True):
+def best_swap(routes, instance, deadline):
     """
     Tìm nước đi Swap TỐT NHẤT. Lấy 1 điểm từ tuyến dài nhất đổi lấy 1 điểm tuyến khác.
     Tương tự, duyệt lấy list các đường đi dài nhất. Duyệt từng tuyến, mỗi tuyến duyệt từng điểm để đổi . Sau mỗi lần đổi thì check xem kết quả có tốt hơn hay ko lưu vào best .
@@ -254,7 +244,7 @@ def best_swap(routes, instance, deadline, include_return_to_depot=True):
     Trả về route sau khi swap
     """
     d = instance.distance
-    lengths = all_routes_length(routes, d, include_return_to_depot)
+    lengths = all_routes_length(routes, d)
     current_obj = objective_from_lengths(lengths)
 
     longest = current_obj[0]
@@ -275,10 +265,10 @@ def best_swap(routes, instance, deadline, include_return_to_depot=True):
                 for j in range(1, len(route_dst)):
                     point_dst = route_dst[j]
 
-                    delta_src = replace_delta(route_src, i, point_dst, d, include_return_to_depot)
+                    delta_src = replace_delta(route_src, i, point_dst, d)
                     src_new_len = lengths[src] + delta_src
 
-                    delta_dst = replace_delta(route_dst, j, point_src, d, include_return_to_depot)
+                    delta_dst = replace_delta(route_dst, j, point_src, d)
                     dst_new_len = lengths[dst] + delta_dst
 
                     obj_new = objective_from_two(lengths, src, src_new_len, dst, dst_new_len)
@@ -294,12 +284,12 @@ def best_swap(routes, instance, deadline, include_return_to_depot=True):
     return routes
 
 
-def best_two_opt(routes, instance, deadline, include_return_to_depot=True):
+def best_two_opt(routes, instance, deadline):
     """
     Gỡ nút chữ X (2-opt) trên tuyến dài nhất.
     """
     d = instance.distance
-    lengths = all_routes_length(routes, d, include_return_to_depot)
+    lengths = all_routes_length(routes, d)
     current_obj = objective_from_lengths(lengths)
 
     longest = current_obj[0]
@@ -316,7 +306,7 @@ def best_two_opt(routes, instance, deadline, include_return_to_depot=True):
             if time.perf_counter() >= deadline:
                 return None
             for j in range(i + 1, n_points - 1):
-                delta = two_opt_delta(route_src, i, j, d, include_return_to_depot)
+                delta = two_opt_delta(route_src, i, j, d)
 
                 # Chỉ đánh giá nếu độ dài thực sự giảm (tức là delta < 0)
                 if delta < 0:
@@ -339,7 +329,7 @@ def best_two_opt(routes, instance, deadline, include_return_to_depot=True):
     return routes
 
 
-def vnd(routes, instance, deadline, include_return_to_depot=True):
+def vnd(routes, instance, deadline):
     """
     mã giả vnd:
         khởi tạo các cấu trúc lân cận neighborhood  n1 , n2 , vvvv
@@ -359,11 +349,11 @@ def vnd(routes, instance, deadline, include_return_to_depot=True):
         if time.perf_counter() >= deadline:
             break
         if L == 1:
-            new_routes = best_relocate(routes, instance, deadline, include_return_to_depot)
+            new_routes = best_relocate(routes, instance, deadline)
         elif L == 2:
-            new_routes = best_swap(routes, instance, deadline, include_return_to_depot)
+            new_routes = best_swap(routes, instance, deadline)
         else:
-            new_routes = best_two_opt(routes, instance, deadline, include_return_to_depot)
+            new_routes = best_two_opt(routes, instance, deadline)
 
         if new_routes is not None:
             routes = new_routes
@@ -418,7 +408,7 @@ def candidate_positions(route, rng, limit=CANDIDATE_LIMIT):
     return list(positions)
 
 
-def build_initial(instance, rng, deadline, include_return_to_depot=True):
+def build_initial(instance, rng, deadline):
     d = instance.distance
     routes = [[0] for _ in range(instance.k)]
     lengths = [0.0] * instance.k
@@ -428,7 +418,7 @@ def build_initial(instance, rng, deadline, include_return_to_depot=True):
     for r_idx in range(min(instance.k, len(points))):
         point = points.pop(0)
         routes[r_idx].append(point)
-        lengths[r_idx] = route_length(routes[r_idx], d, include_return_to_depot)
+        lengths[r_idx] = route_length(routes[r_idx], d)
 
     rng.shuffle(points)
 
@@ -440,7 +430,6 @@ def build_initial(instance, rng, deadline, include_return_to_depot=True):
                 point,
                 len(routes[r_idx]),
                 d,
-                include_return_to_depot,
             )
             routes[r_idx].append(point)
             lengths[r_idx] += delta
@@ -455,7 +444,7 @@ def build_initial(instance, rng, deadline, include_return_to_depot=True):
             other_max = max((lengths[i] for i in range(instance.k) if i != r_idx), default=0.0)
 
             for pos in candidate_positions(route, rng):
-                delta = insertion_delta(route, point, pos, d, include_return_to_depot)
+                delta = insertion_delta(route, point, pos, d)
                 new_len = lengths[r_idx] + delta
 
                 score = (max(other_max, new_len), total + delta, new_len)
@@ -486,18 +475,18 @@ def shake(routes, k, rng):
     return new_routes
 
 
-def solve(instance, include_return_to_depot=True, return_stats=False):
+def solve(instance, return_stats=False):
     rng = random.Random(RANDOM_SEED)
     deadline = time.perf_counter() + TIME_LIMIT
     iterations = 0
     outer_iterations = 0
 
-    routes = build_initial(instance, rng, deadline, include_return_to_depot)
-    routes = vnd(routes, instance, deadline, include_return_to_depot)
+    routes = build_initial(instance, rng, deadline)
+    routes = vnd(routes, instance, deadline)
 
     best_routes = routes
     best_obj = objective_from_lengths(
-        all_routes_length(routes, instance.distance, include_return_to_depot)
+        all_routes_length(routes, instance.distance)
     )
 
     k_max = MAX_SHAKE_LEVEL
@@ -507,9 +496,9 @@ def solve(instance, include_return_to_depot=True, return_stats=False):
         while k <= k_max and time.perf_counter() < deadline:
             iterations += 1
             shaken = shake(best_routes, k, rng)
-            local_opt = vnd(shaken, instance, deadline, include_return_to_depot)
+            local_opt = vnd(shaken, instance, deadline)
             local_obj = objective_from_lengths(
-                all_routes_length(local_opt, instance.distance, include_return_to_depot)
+                all_routes_length(local_opt, instance.distance)
             )
 
             if local_obj < best_obj:

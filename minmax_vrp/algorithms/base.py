@@ -9,7 +9,6 @@ from ..models import Distance, Instance, Solution
 class AlgorithmConfig:
     time_limit: float = 10.0
     seed: int = 99
-    include_return_to_depot: bool = True
     use_local_search: bool = False
 
     q_min_ratio: float = 0.05

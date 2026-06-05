@@ -11,5 +11,4 @@ Khi so sanh nen giu cong bang:
 - cung instance;
 - cung `k`;
 - cung `time_limit`;
-- cung che do return-to-depot;
 - chay nhieu seed voi thuat toan co random.

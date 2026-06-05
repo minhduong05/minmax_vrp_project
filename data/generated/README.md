@@ -42,8 +42,8 @@ Bo generated data gom 48 file, chia thanh 6 nhom:
 | `cluster` | 9 | Kiem tra kha nang chia cum va sua nghiem phan vung sai. |
 | `outlier` | 9 | Kiem tra kha nang xu ly diem xa, rat quan trong voi objective min-max. |
 | `corridor` | 9 | Kiem tra du lieu dang hanh lang/duong dai, depot o dau hanh lang. |
-| `asymmetric` | 6 | Kiem tra code voi ma tran bat doi xung. |
 | `k_sensitivity` | 6 | Kiem tra anh huong cua so xe `K` khi giu `N = 500`. |
+| `depot_position` | 6 | Kiem tra tac dong cua vi tri depot trong bai toan route mo. |
 
 ## Tham so sinh chung
 
@@ -52,6 +52,8 @@ Bo generated data gom 48 file, chia thanh 6 nhom:
 | Khong gian toa do | `[0, 1000] x [0, 1000]` |
 | Depot trung tam | `(500, 500)` |
 | Depot corridor | `(0, 500)` |
+| Depot edge | `(0, 500)` |
+| Depot corner | `(0, 0)` |
 | Khoang cach chinh | Euclidean distance |
 | Seed chinh | `seed01`, `seed02`, `seed03` |
 | File generator | `scripts/generate_generated_data.py` |
@@ -139,30 +141,6 @@ can can than vi mot xe di qua xa ve cuoi hanh lang se lam objective xau.
 | `corridor/corridor_edge_n1000_k100_seed02.txt` | 1000 | 100 | 2 | Hanh lang lon voi seed khac. |
 | `corridor/corridor_edge_n1000_k100_seed03.txt` | 1000 | 100 | 3 | Hanh lang lon voi seed khac. |
 
-## Asymmetric
-
-Nhom `asymmetric` dung ma tran khoang cach bat doi xung, tuc la co the co
-`d(i, j) != d(j, i)`. Toa do pickup ban dau van sinh uniform, depot nam o
-trung tam `(500, 500)`, nhung khoang cach duoc nhan bias theo huong di.
-
-Trong generator hien tai:
-
-- Di ve huong dong/nam re hon.
-- Di ve huong tay/bac dat hon.
-- Duong cheo `d(i, i)` bang `0`.
-
-Nhom nay dung de kiem tra xem thuat toan co ngam gia su ma tran doi xung hay
-khong. Nen bao cao rieng voi nhom Euclidean chinh.
-
-| File | N | K | Seed | Mo ta |
-|---|---:|---:|---:|---|
-| `asymmetric/asymmetric_n300_k50_seed01.txt` | 300 | 50 | 1 | Ma tran bat doi xung kich thuoc trung binh. |
-| `asymmetric/asymmetric_n300_k50_seed02.txt` | 300 | 50 | 2 | Ma tran bat doi xung trung binh voi seed khac. |
-| `asymmetric/asymmetric_n300_k50_seed03.txt` | 300 | 50 | 3 | Ma tran bat doi xung trung binh voi seed khac. |
-| `asymmetric/asymmetric_n1000_k100_seed01.txt` | 1000 | 100 | 1 | Ma tran bat doi xung lon, stress test robustness. |
-| `asymmetric/asymmetric_n1000_k100_seed02.txt` | 1000 | 100 | 2 | Ma tran bat doi xung lon voi seed khac. |
-| `asymmetric/asymmetric_n1000_k100_seed03.txt` | 1000 | 100 | 3 | Ma tran bat doi xung lon voi seed khac. |
-
 ## K Sensitivity
 
 Nhom `k_sensitivity` giu `N = 500`, thay doi `K` de xem so xe anh huong the
@@ -181,6 +159,29 @@ Co hai dang phan bo:
 | `k_sensitivity/cluster_n500_k2_seed01.txt` | 500 | 2 | 1 | Cluster voi rat it xe, buoc chia cum rat kho. |
 | `k_sensitivity/cluster_n500_k10_seed01.txt` | 500 | 10 | 1 | Cluster voi so xe vua phai, phu hop so sanh voi 10 cum. |
 | `k_sensitivity/cluster_n500_k50_seed01.txt` | 500 | 50 | 1 | Cluster voi nhieu xe, kiem tra viec tach cum thanh nhieu route. |
+
+## Depot Position
+
+Nhom `depot_position` giu cung pickup uniform voi nhom `uniform` kich thuoc
+`N = 300`, `K = 20`, nhung doi vi tri depot. Nhom nay quan trong sau khi bai
+toan chuyen sang route mo, vi route khong quay ve depot nen diem xuat phat anh
+huong truc tiep den cach chia tuyen.
+
+Dung nhom nay de so sanh voi cac file `uniform/uniform_center_n300_k20_seedXX.txt`.
+Ba vi tri can doc chung:
+
+- `center`: co san trong nhom `uniform`, depot o `(500, 500)`.
+- `edge`: depot o `(0, 500)`.
+- `corner`: depot o `(0, 0)`.
+
+| File | N | K | Seed | Mo ta |
+|---|---:|---:|---:|---|
+| `depot_position/uniform_edge_n300_k20_seed01.txt` | 300 | 20 | 1 | Cung pickup voi uniform seed01, depot o canh trai. |
+| `depot_position/uniform_corner_n300_k20_seed01.txt` | 300 | 20 | 1 | Cung pickup voi uniform seed01, depot o goc trai duoi. |
+| `depot_position/uniform_edge_n300_k20_seed02.txt` | 300 | 20 | 2 | Cung pickup voi uniform seed02, depot o canh trai. |
+| `depot_position/uniform_corner_n300_k20_seed02.txt` | 300 | 20 | 2 | Cung pickup voi uniform seed02, depot o goc trai duoi. |
+| `depot_position/uniform_edge_n300_k20_seed03.txt` | 300 | 20 | 3 | Cung pickup voi uniform seed03, depot o canh trai. |
+| `depot_position/uniform_corner_n300_k20_seed03.txt` | 300 | 20 | 3 | Cung pickup voi uniform seed03, depot o goc trai duoi. |
 
 ## Metric nen bao cao
 
@@ -203,5 +204,5 @@ Goi y doc ket qua theo tung nhom:
 | `cluster` | Kha nang sua route bi chia cum sai. |
 | `outlier` | Kha nang phan tan diem xa de giam max-route. |
 | `corridor` | Kha nang chia doan theo huong tu depot ra xa. |
-| `asymmetric` | Robustness khi `d(i, j)` khac `d(j, i)`. |
 | `k_sensitivity` | Anh huong cua so xe `K` den objective va balance. |
+| `depot_position` | Do nhay cua thuat toan khi depot chuyen tu trung tam ra bien/goc. |

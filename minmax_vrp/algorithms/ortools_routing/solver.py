@@ -18,7 +18,7 @@ class OrToolsRoutingAlgorithm(SolverAlgorithm):
         start = time.perf_counter()
         solution, stats = _solve_with_ortools(instance, self.config)
         if solution is None:
-            solution = _fallback_solution(instance, self.config)
+            solution = _fallback_solution(instance)
             stats["fallback_used"] = True
         solution.assert_feasible(instance)
         runtime = time.perf_counter() - start
@@ -49,16 +49,13 @@ def _solve_with_ortools(
         from_node = manager.IndexToNode(from_index)
         to_node = manager.IndexToNode(to_index)
         if to_node == 0:
-            if config.include_return_to_depot and from_node != 0:
-                return _scaled_distance(instance.distance[from_node][0], distance_scale)
             return 0
         return _scaled_distance(instance.distance[from_node][to_node], distance_scale)
 
     transit_callback_index = routing.RegisterTransitCallback(transit_callback)
     routing.SetArcCostEvaluatorOfAllVehicles(transit_callback_index)
 
-    max_arcs_per_route = instance.n + 1 if config.include_return_to_depot else instance.n
-    horizon = max(1, max_arcs_per_route * max_distance)
+    horizon = max(1, instance.n * max_distance)
     routing.AddDimension(
         transit_callback_index,
         0,
@@ -102,11 +99,9 @@ def _solve_with_ortools(
                 route.append(node)
             index = assignment.Value(routing.NextVar(index))
         routes.append(route)
-        route_lengths.append(
-            _route_length(route, instance.distance, config.include_return_to_depot)
-        )
+        route_lengths.append(_route_length(route, instance.distance))
 
-    solution = Solution(routes, config.include_return_to_depot)
+    solution = Solution(routes)
     stats = {
         "solver": "ortools",
         "first_solution_strategy": "PARALLEL_CHEAPEST_INSERTION",
@@ -118,7 +113,7 @@ def _solve_with_ortools(
     return solution, stats
 
 
-def _fallback_solution(instance: Instance, config: AlgorithmConfig) -> Solution:
+def _fallback_solution(instance: Instance) -> Solution:
     routes = [[0] for _ in range(instance.k)]
     lengths = [0.0 for _ in range(instance.k)]
 
@@ -126,11 +121,7 @@ def _fallback_solution(instance: Instance, config: AlgorithmConfig) -> Solution:
         best_choice: tuple[Distance, int] | None = None
         for route_index, route in enumerate(routes):
             candidate = route + [point]
-            candidate_length = _route_length(
-                candidate,
-                instance.distance,
-                config.include_return_to_depot,
-            )
+            candidate_length = _route_length(candidate, instance.distance)
             other_max = max(
                 (length for idx, length in enumerate(lengths) if idx != route_index),
                 default=0.0,
@@ -142,27 +133,17 @@ def _fallback_solution(instance: Instance, config: AlgorithmConfig) -> Solution:
         assert best_choice is not None
         _, selected_route = best_choice
         routes[selected_route].append(point)
-        lengths[selected_route] = _route_length(
-            routes[selected_route],
-            instance.distance,
-            config.include_return_to_depot,
-        )
+        lengths[selected_route] = _route_length(routes[selected_route], instance.distance)
 
-    return Solution(routes, config.include_return_to_depot)
+    return Solution(routes)
 
 
-def _route_length(
-    route: list[int],
-    distance: list[list[Distance]],
-    include_return_to_depot: bool,
-) -> Distance:
+def _route_length(route: list[int], distance: list[list[Distance]]) -> Distance:
     if len(route) <= 1:
         return 0.0
     length = 0.0
     for idx in range(len(route) - 1):
         length += distance[route[idx]][route[idx + 1]]
-    if include_return_to_depot:
-        length += distance[route[-1]][0]
     return length
 
 

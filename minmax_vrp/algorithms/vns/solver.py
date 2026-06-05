@@ -23,14 +23,13 @@ class VNSAlgorithm(SolverAlgorithm):
             submit_vns.RANDOM_SEED = self.config.seed
             routes, vns_stats = submit_vns.solve(
                 instance,
-                include_return_to_depot=self.config.include_return_to_depot,
                 return_stats=True,
             )
         finally:
             submit_vns.TIME_LIMIT = old_time_limit
             submit_vns.RANDOM_SEED = old_seed
 
-        solution = Solution(routes, self.config.include_return_to_depot)
+        solution = Solution(routes)
         solution.assert_feasible(instance)
         runtime = time.perf_counter() - start
         return AlgorithmResult(

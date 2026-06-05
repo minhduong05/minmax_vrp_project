@@ -43,22 +43,6 @@ def euclidean(a: Point, b: Point) -> float:
     return math.hypot(a[0] - b[0], a[1] - b[1])
 
 
-def asymmetric_distance(a: Point, b: Point) -> float:
-    if a == b:
-        return 0.0
-
-    base = euclidean(a, b)
-    dx = b[0] - a[0]
-    dy = b[1] - a[1]
-
-    # Moving east/south is cheaper, moving west/north is more expensive.
-    directional_bias = 1.0
-    directional_bias += 0.18 if dx < 0 else -0.08
-    directional_bias += 0.12 if dy < 0 else -0.04
-
-    return max(0.05, base * directional_bias)
-
-
 def uniform_points(rng: random.Random, n: int) -> list[Point]:
     return [
         (rng.uniform(SPACE_MIN, SPACE_MAX), rng.uniform(SPACE_MIN, SPACE_MAX))
@@ -187,18 +171,6 @@ def generate_main_group(root: Path) -> list[Path]:
     return written
 
 
-def generate_asymmetric(root: Path) -> list[Path]:
-    written: list[Path] = []
-    for n, k in [(300, 50), (1000, 100)]:
-        for seed in [1, 2, 3]:
-            rng = random.Random(40_000 + seed + n)
-            filename = f"asymmetric_n{n}_k{k}_{seed_code(seed)}.txt"
-            path = root / "asymmetric" / filename
-            write_instance(path, n, k, [CENTER_DEPOT, *uniform_points(rng, n)], asymmetric_distance)
-            written.append(path)
-    return written
-
-
 def generate_k_sensitivity(root: Path) -> list[Path]:
     written: list[Path] = []
 
@@ -215,6 +187,26 @@ def generate_k_sensitivity(root: Path) -> list[Path]:
         path = root / "k_sensitivity" / filename
         write_instance(path, 500, k, [CENTER_DEPOT, *cluster_points(rng, 500, 10)], euclidean)
         written.append(path)
+
+    return written
+
+
+def generate_depot_position(root: Path) -> list[Path]:
+    written: list[Path] = []
+    n = 300
+    k = 20
+    depots = {
+        "edge": EDGE_DEPOT,
+        "corner": CORNER_DEPOT,
+    }
+
+    for seed in [1, 2, 3]:
+        points = uniform_points(random.Random(seed), n)
+        for label, depot in depots.items():
+            filename = f"uniform_{label}_n{n}_k{k}_{seed_code(seed)}.txt"
+            path = root / "depot_position" / filename
+            write_instance(path, n, k, [depot, *points], euclidean)
+            written.append(path)
 
     return written
 
@@ -236,8 +228,8 @@ def main() -> None:
 
     written = []
     written.extend(generate_main_group(output_dir))
-    written.extend(generate_asymmetric(output_dir))
     written.extend(generate_k_sensitivity(output_dir))
+    written.extend(generate_depot_position(output_dir))
 
     print(f"Generated {len(written)} files under {output_dir}")
     for path in written:
