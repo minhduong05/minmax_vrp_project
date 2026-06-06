@@ -1,3 +1,4 @@
+import random
 import sys
 import copy
 import time
@@ -61,12 +62,27 @@ def insertion_delta(route, point, position, d):
     return d[prev][point]
 
 #Khởi tạo tham lam
-def greedy_init(N, K, d):
+def greedy_init(N, K, d, rng=None):
     routes = [[0] for _ in range(K)]
     lengths = [0.0] * K
 
     # điểm xa nhất xử lý trước
     points = sorted(range(1, N + 1), key=lambda p: d[0][p], reverse=True)
+
+    if rng is not None:
+        shuffled = points[:]
+        rng.shuffle(shuffled)
+        # lay ~mot nua dau theo thu tu xa-nhat, mot nua sau theo thu tu ngau nhien
+        cut = len(points) // 2
+        kept = points[:cut]
+        kept_set = set(kept)
+        tail = [p for p in shuffled if p not in kept_set]
+        points = kept + tail
+        # them mot it xao tron toan cuc nhe cho da dang hon
+        for _ in range(max(1, len(points) // 4)):
+            i = rng.randrange(len(points))
+            j = rng.randrange(len(points))
+            points[i], points[j] = points[j], points[i]
 
     for point in points:
         best = None
@@ -171,9 +187,10 @@ def generate_candidate(routes, d, max_candidates = 200, deadline = None):
     return candidates[:max_candidates]
 
 # tabu search
-def tabu_search(N, K, d, max_inter=1000, tenure=7, max_candidates=200,
-                deadline=None):
-    routes = greedy_init(N, K, d)
+def tabu_search(N, K, d, max_inter=1000, tenure=7, max_candidates=200, deadline=None, seed=None):
+
+    rng = random.Random(seed) if seed is not None else None
+    routes = greedy_init(N, K, d, rng)
     best_routes = copy.deepcopy(routes)
     f_best = objective(routes, d)
 
