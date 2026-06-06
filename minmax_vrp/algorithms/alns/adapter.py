@@ -18,6 +18,12 @@ class ALNSAlgorithm(SolverAlgorithm):
                 seed=self.config.seed,
                 q_min_ratio=self.config.q_min_ratio,
                 q_max_ratio=self.config.q_max_ratio,
+                initial_temperature=self.config.initial_temperature,
+                cooling_rate=self.config.cooling_rate,
+                reward_global_best=self.config.reward_global_best,
+                reward_current_improved=self.config.reward_current_improved,
+                reward_accepted=self.config.reward_accepted,
+                reward_rejected=self.config.reward_rejected,
             )
         )
         result = solver.solve(instance)

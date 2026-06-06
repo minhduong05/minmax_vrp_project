@@ -38,6 +38,12 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--local-search", action="store_true", help="Enable Tabu post-optimization")
     parser.add_argument("--q-min-ratio", type=float, default=0.05)
     parser.add_argument("--q-max-ratio", type=float, default=0.20)
+    parser.add_argument("--initial-temperature", type=float, default=1000.0)
+    parser.add_argument("--cooling-rate", type=float, default=0.999)
+    parser.add_argument("--reward-global-best", type=float, default=10.0)
+    parser.add_argument("--reward-current-improved", type=float, default=5.0)
+    parser.add_argument("--reward-accepted", type=float, default=1.0)
+    parser.add_argument("--reward-rejected", type=float, default=0.0)
     parser.add_argument(
         "-o",
         "--output",
@@ -58,6 +64,12 @@ def main(argv: list[str] | None = None) -> int:
         use_local_search=args.local_search,
         q_min_ratio=args.q_min_ratio,
         q_max_ratio=args.q_max_ratio,
+        initial_temperature=args.initial_temperature,
+        cooling_rate=args.cooling_rate,
+        reward_global_best=args.reward_global_best,
+        reward_current_improved=args.reward_current_improved,
+        reward_accepted=args.reward_accepted,
+        reward_rejected=args.reward_rejected,
     )
     result = create_solver(args.algorithm, config).solve(instance)
     feasible = result.best.is_feasible(instance)

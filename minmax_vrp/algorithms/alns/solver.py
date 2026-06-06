@@ -16,6 +16,8 @@ class ALNSConfig:
     seed: int = 99
     q_min_ratio: float = 0.05
     q_max_ratio: float = 0.20
+    initial_temperature: float = 1000.0
+    cooling_rate: float = 0.999
     reaction: float = 0.20
     segment_length: int = 50
 
@@ -52,7 +54,10 @@ class ALNSSolver:
         self.repair_selector = AdaptiveSelector(
             repair_operators or default_repair_operators(), reaction=self.config.reaction
         )
-        self.acceptance = SimulatedAnnealingAcceptance()
+        self.acceptance = SimulatedAnnealingAcceptance(
+            initial_temperature=self.config.initial_temperature,
+            cooling_rate=self.config.cooling_rate,
+        )
 
     def solve(self, instance: Instance, initial=None) -> ALNSResult:
         start = time.perf_counter()
