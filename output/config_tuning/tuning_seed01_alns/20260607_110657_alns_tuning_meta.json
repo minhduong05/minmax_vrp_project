@@ -1,0 +1,161 @@
+{
+  "preset": "smoke",
+  "instances": [
+    "data/generated/uniform/uniform_center_n100_k5_seed01.txt",
+    "data/generated/uniform/uniform_center_n300_k20_seed01.txt",
+    "data/generated/uniform/uniform_center_n1000_k100_seed01.txt",
+    "data/generated/cluster/cluster5_n100_k5_seed01.txt",
+    "data/generated/cluster/cluster10_n300_k20_seed01.txt",
+    "data/generated/cluster/cluster20_n1000_k100_seed01.txt",
+    "data/generated/outlier/outlier10pct_n100_k5_seed01.txt",
+    "data/generated/outlier/outlier10pct_n300_k20_seed01.txt",
+    "data/generated/outlier/outlier5pct_n1000_k100_seed01.txt",
+    "data/generated/corridor/corridor_edge_n100_k5_seed01.txt",
+    "data/generated/corridor/corridor_edge_n300_k20_seed01.txt",
+    "data/generated/corridor/corridor_edge_n1000_k100_seed01.txt",
+    "data/generated/depot_position/uniform_edge_n300_k20_seed01.txt",
+    "data/generated/depot_position/uniform_corner_n300_k20_seed01.txt"
+  ],
+  "seeds": [
+    1,
+    2,
+    3
+  ],
+  "time_limit": 10.0,
+  "top_k": 2,
+  "destroy_configs": [
+    {
+      "name": "small_destroy",
+      "q_min_ratio": 0.02,
+      "q_max_ratio": 0.1
+    },
+    {
+      "name": "medium_destroy",
+      "q_min_ratio": 0.05,
+      "q_max_ratio": 0.2
+    },
+    {
+      "name": "large_destroy",
+      "q_min_ratio": 0.1,
+      "q_max_ratio": 0.3
+    },
+    {
+      "name": "very_large_destroy",
+      "q_min_ratio": 0.15,
+      "q_max_ratio": 0.4
+    }
+  ],
+  "sa_configs": [
+    {
+      "name": "strict",
+      "initial_temperature": 300.0,
+      "cooling_rate": 0.999
+    },
+    {
+      "name": "balanced",
+      "initial_temperature": 500.0,
+      "cooling_rate": 0.9995
+    },
+    {
+      "name": "default",
+      "initial_temperature": 1000.0,
+      "cooling_rate": 0.999
+    },
+    {
+      "name": "default_slow",
+      "initial_temperature": 1000.0,
+      "cooling_rate": 0.9995
+    },
+    {
+      "name": "very_exploratory",
+      "initial_temperature": 1000.0,
+      "cooling_rate": 0.9999
+    }
+  ],
+  "reward_configs": [
+    {
+      "name": "default",
+      "reward_global_best": 10.0,
+      "reward_current_improved": 5.0,
+      "reward_accepted": 1.0,
+      "reward_rejected": 0.0
+    },
+    {
+      "name": "aggressive_best",
+      "reward_global_best": 20.0,
+      "reward_current_improved": 5.0,
+      "reward_accepted": 1.0,
+      "reward_rejected": 0.0
+    },
+    {
+      "name": "smooth_reward",
+      "reward_global_best": 8.0,
+      "reward_current_improved": 4.0,
+      "reward_accepted": 1.0,
+      "reward_rejected": 0.0
+    },
+    {
+      "name": "improvement_only",
+      "reward_global_best": 10.0,
+      "reward_current_improved": 5.0,
+      "reward_accepted": 0.0,
+      "reward_rejected": 0.0
+    },
+    {
+      "name": "exploration_friendly",
+      "reward_global_best": 10.0,
+      "reward_current_improved": 5.0,
+      "reward_accepted": 2.0,
+      "reward_rejected": 0.0
+    }
+  ],
+  "evaluation_protocol": {
+    "baseline_key": "same instance + same solver seed",
+    "primary_metric": "mean_relative_max_route",
+    "relative_max_route": "config_max_route / baseline_max_route",
+    "max_route_improvement_pct": "100 * (baseline_max_route - config_max_route) / baseline_max_route",
+    "win_rate": "share of runs where config max_route < baseline max_route",
+    "ranking_order": [
+      "lower mean_relative_max_route",
+      "higher win_rate",
+      "higher mean_max_route_improvement_pct",
+      "higher median_max_route_improvement_pct",
+      "lower mean_total_distance"
+    ]
+  },
+  "selected_destroy": [
+    {
+      "q_min_ratio": 0.02,
+      "q_max_ratio": 0.1
+    },
+    {
+      "q_min_ratio": 0.05,
+      "q_max_ratio": 0.2
+    }
+  ],
+  "selected_sa": [
+    {
+      "initial_temperature": 500.0,
+      "cooling_rate": 0.9995
+    },
+    {
+      "initial_temperature": 300.0,
+      "cooling_rate": 0.999
+    }
+  ],
+  "selected_reward": [
+    {
+      "reward_global_best": 20.0,
+      "reward_current_improved": 5.0,
+      "reward_accepted": 1.0,
+      "reward_rejected": 0.0
+    },
+    {
+      "reward_global_best": 10.0,
+      "reward_current_improved": 5.0,
+      "reward_accepted": 1.0,
+      "reward_rejected": 0.0
+    }
+  ],
+  "final_stage": "final_selection"
+}

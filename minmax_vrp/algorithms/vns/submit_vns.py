@@ -10,6 +10,24 @@ RANDOM_SEED = 42
 MAX_SHAKE_LEVEL = 5
 CANDIDATE_LIMIT = 24  # tham lam
 MAX_VND_LEVEL = 3
+# Nguong cai thien toi thieu: chi nhan nuoc di khi objective tot hon > IMPROVE_EPS.
+# Tranh "cai thien vi mo" lam local search khong bao gio hoi tu (gay iters=0 o bai lon).
+IMPROVE_EPS = 1e-6
+
+
+def _improved(new_obj, current_obj):
+    """new_obj tot hon current_obj mot luong dang ke (> IMPROVE_EPS)?
+
+    Hai tham so la tuple do dai tuyen da sort giam dan. Tot hon = nho hon theo
+    thu tu lexicographic, nhung phai hon o muc > IMPROVE_EPS de khong nhan cac
+    cai thien qua nho (gay churn, khong hoi tu).
+    """
+    for a, b in zip(new_obj, current_obj):
+        if a < b - IMPROVE_EPS:
+            return True
+        if a > b + IMPROVE_EPS:
+            return False
+    return False
 
 # thấy bảo array tính toán nhanh hơn list :))
 # boi den gsa (
@@ -230,7 +248,7 @@ def best_relocate(routes, instance, deadline):
                     if best_move is None or obj_new < best_move[0]:
                         best_move = (obj_new, i, src, j, dst)
 
-    if best_move is None or best_move[0] >= current_obj:
+    if best_move is None or not _improved(best_move[0], current_obj):
         return None
     _, ps, src, pd, dst = best_move
     moved = routes[src].pop(ps)
@@ -278,7 +296,7 @@ def best_swap(routes, instance, deadline):
                     if best_move is None or obj_new < best_move[0]:
                         best_move = (obj_new, i, src, j, dst)
 
-    if best_move is None or best_move[0] >= current_obj:
+    if best_move is None or not _improved(best_move[0], current_obj):
         return None
 
     _, ps, src, pd, dst = best_move
@@ -321,7 +339,7 @@ def best_two_opt(routes, instance, deadline):
                     if best_move is None or obj_new < best_move[0]:
                         best_move = (obj_new, src, i, j)
 
-    if best_move is None or best_move[0] >= current_obj:
+    if best_move is None or not _improved(best_move[0], current_obj):
         return None
 
     _, src, i, j = best_move
@@ -477,9 +495,17 @@ def shake(routes, k, rng):
     return new_routes
 
 
-def solve(instance, return_stats=False):
+def solve(instance, return_stats=False, on_checkpoint=None):
+    """Giai bai toan bang VNS.
+
+    on_checkpoint (tuy chon): callback de ghi lai qua trinh hoi tu. Duoc goi voi
+    (checkpoint_type, elapsed_time, iteration, best_obj) tai cac moc: "initial"
+    (sau khoi tao + vnd dau), "new_best" (moi khi tim duoc nghiem tot hon), va
+    "final" (luc het gio). Mac dinh None -> khong anh huong hanh vi binh thuong.
+    """
     rng = random.Random(RANDOM_SEED)
-    deadline = time.perf_counter() + TIME_LIMIT
+    start = time.perf_counter()
+    deadline = start + TIME_LIMIT
     iterations = 0
     outer_iterations = 0
 
@@ -490,6 +516,17 @@ def solve(instance, return_stats=False):
     best_obj = objective_from_lengths(
         all_routes_length(routes, instance.distance)
     )
+
+    def _checkpoint(checkpoint_type):
+        if on_checkpoint is not None:
+            on_checkpoint(
+                checkpoint_type,
+                time.perf_counter() - start,
+                iterations,
+                best_obj,
+            )
+
+    _checkpoint("initial")
 
     k_max = MAX_SHAKE_LEVEL
     while time.perf_counter() < deadline:
@@ -507,8 +544,11 @@ def solve(instance, return_stats=False):
                 best_routes = local_opt
                 best_obj = local_obj
                 k = 1
+                _checkpoint("new_best")
             else:
                 k += 1
+
+    _checkpoint("final")
 
     if return_stats:
         return best_routes, {
