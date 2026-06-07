@@ -1,0 +1,121 @@
+{
+  "algorithm": "tabu_search",
+  "preset": "smoke",
+  "instances": [
+    "data/generated/uniform/uniform_center_n100_k5_seed01.txt",
+    "data/generated/uniform/uniform_center_n300_k20_seed01.txt",
+    "data/generated/uniform/uniform_center_n1000_k100_seed01.txt",
+    "data/generated/cluster/cluster5_n100_k5_seed01.txt",
+    "data/generated/cluster/cluster10_n300_k20_seed01.txt",
+    "data/generated/cluster/cluster20_n1000_k100_seed01.txt",
+    "data/generated/outlier/outlier10pct_n100_k5_seed01.txt",
+    "data/generated/outlier/outlier10pct_n300_k20_seed01.txt",
+    "data/generated/outlier/outlier5pct_n1000_k100_seed01.txt",
+    "data/generated/corridor/corridor_edge_n100_k5_seed01.txt",
+    "data/generated/corridor/corridor_edge_n300_k20_seed01.txt",
+    "data/generated/corridor/corridor_edge_n1000_k100_seed01.txt",
+    "data/generated/depot_position/uniform_edge_n300_k20_seed01.txt",
+    "data/generated/depot_position/uniform_corner_n300_k20_seed01.txt"
+  ],
+  "seeds": [
+    1,
+    2,
+    3
+  ],
+  "time_limit": 10.0,
+  "top_k": 2,
+  "tabu_configs": [
+    {
+      "name": "tenure5_cand100",
+      "tenure": 5,
+      "max_candidates": 100
+    },
+    {
+      "name": "tenure5_cand200",
+      "tenure": 5,
+      "max_candidates": 200
+    },
+    {
+      "name": "tenure5_cand400",
+      "tenure": 5,
+      "max_candidates": 400
+    },
+    {
+      "name": "tenure7_cand100",
+      "tenure": 7,
+      "max_candidates": 100
+    },
+    {
+      "name": "tenure7_cand200",
+      "tenure": 7,
+      "max_candidates": 200
+    },
+    {
+      "name": "tenure7_cand400",
+      "tenure": 7,
+      "max_candidates": 400
+    },
+    {
+      "name": "tenure10_cand100",
+      "tenure": 10,
+      "max_candidates": 100
+    },
+    {
+      "name": "tenure10_cand200",
+      "tenure": 10,
+      "max_candidates": 200
+    },
+    {
+      "name": "tenure10_cand400",
+      "tenure": 10,
+      "max_candidates": 400
+    },
+    {
+      "name": "tenure15_cand100",
+      "tenure": 15,
+      "max_candidates": 100
+    },
+    {
+      "name": "tenure15_cand200",
+      "tenure": 15,
+      "max_candidates": 200
+    },
+    {
+      "name": "tenure15_cand400",
+      "tenure": 15,
+      "max_candidates": 400
+    }
+  ],
+  "baseline_config": {
+    "name": "tenure7_cand200",
+    "tenure": 7,
+    "max_candidates": 200
+  },
+  "use_local_search": true,
+  "evaluation_protocol": {
+    "baseline_key": "same instance + same solver seed",
+    "primary_metric": "mean_relative_max_route",
+    "relative_max_route": "config_max_route / baseline_max_route",
+    "max_route_improvement_pct": "100 * (baseline_max_route - config_max_route) / baseline_max_route",
+    "win_rate": "share of runs where config max_route < baseline max_route",
+    "ranking_order": [
+      "lower mean_relative_max_route",
+      "higher win_rate",
+      "higher mean_max_route_improvement_pct",
+      "higher median_max_route_improvement_pct"
+    ]
+  },
+  "final_best": {
+    "config_name": "tenure15_cand100",
+    "tenure": 15,
+    "max_candidates": 100,
+    "mean_relative_max_route": 0.9893517565802674,
+    "win_rate": 0.2619047619047619,
+    "mean_max_route_improvement_pct": 1.0648243419732561,
+    "median_max_route_improvement_pct": 0.0,
+    "avg_max_route": 1000.9259357142857,
+    "std_max_route": 315.46689979242166,
+    "avg_runtime_s": 10.075554761904762
+  },
+  "final_stage": "final_selection"
+}
