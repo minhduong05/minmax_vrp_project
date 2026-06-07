@@ -49,7 +49,7 @@ BEST_VNS_CONFIG = {
 
 BEST_TABU_CONFIG = {
     "tenure": 15,
-    "max_candidates": 200,
+    "max_candidates": 100,
     "use_local_search": True,
 }
 
@@ -101,7 +101,16 @@ def build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument("--instance-file", default=DEFAULT_INSTANCE_FILE)
     parser.add_argument("--seeds", default="1,2,3")
-    parser.add_argument("--time-limit", type=float, default=10.0)
+    parser.add_argument(
+        "--time-limit",
+        type=float,
+        default=10.0,
+        help="Single time limit, used when --time-limits is omitted.",
+    )
+    parser.add_argument(
+        "--time-limits",
+        help="Comma-separated time limits, for example: 1,3,5,10,30.",
+    )
     parser.add_argument("--output-dir", default=DEFAULT_OUTPUT_DIR)
     parser.add_argument(
         "--stamp",
@@ -143,7 +152,7 @@ def config_name(algorithm: str) -> str:
     if algorithm == "vns":
         return "shake10__cand24"
     if algorithm == "tabu_search":
-        return "tenure15_cand200"
+        return "tenure15_cand100"
     raise ValueError(algorithm)
 
 
@@ -218,6 +227,8 @@ def solve_once(algorithm: str, instance: Instance, time_limit: float, seed: int)
 def row_group_key(row: dict[str, object], group_type: str) -> str:
     if group_type == "overall":
         return "all"
+    if group_type == "time":
+        return str(row["time_limit"])
     if group_type == "size":
         return f"n={row['n']},k={row['k']}"
     if group_type == "family":
@@ -227,7 +238,7 @@ def row_group_key(row: dict[str, object], group_type: str) -> str:
 
 def summarize(rows: list[dict[str, object]], timestamp: str) -> list[dict[str, object]]:
     summary_rows = []
-    for group_type in ("overall", "size", "family"):
+    for group_type in ("overall", "time", "size", "family"):
         grouped: dict[str, list[dict[str, object]]] = defaultdict(list)
         for row in rows:
             grouped[row_group_key(row, group_type)].append(row)
@@ -272,51 +283,58 @@ def write_csv(path: Path, rows: list[dict[str, object]], header: list[str]) -> N
 def main() -> int:
     args = build_parser().parse_args()
     seeds = [int(seed.strip()) for seed in args.seeds.split(",") if seed.strip()]
+    if args.time_limits:
+        time_limits = [
+            float(value.strip()) for value in args.time_limits.split(",") if value.strip()
+        ]
+    else:
+        time_limits = [args.time_limit]
     instance_paths = args.instances or read_instance_file(args.instance_file)
     timestamp = datetime.now().isoformat(timespec="seconds")
     stamp = args.stamp or datetime.now().strftime("%Y%m%d_%H%M%S")
 
     rows = []
-    total_runs = len(instance_paths) * len(seeds)
+    total_runs = len(instance_paths) * len(seeds) * len(time_limits)
     run_index = 0
     for raw_path in instance_paths:
         instance = load_instance(ROOT / raw_path)
-        for seed in seeds:
-            run_index += 1
-            print(
-                f"[{run_index}/{total_runs}] {args.algorithm} "
-                f"{Path(raw_path).name} seed={seed}",
-                flush=True,
-            )
-            solution, runtime, iterations = solve_once(
-                args.algorithm,
-                instance,
-                args.time_limit,
-                seed,
-            )
-            feasible = solution.is_feasible(instance)
-            objective = solution.evaluate(instance)
-            rows.append(
-                {
-                    "timestamp": timestamp,
-                    "algorithm": args.algorithm,
-                    "config_name": config_name(args.algorithm),
-                    "config_json": config_json(args.algorithm),
-                    "instance": raw_path,
-                    "family": family_from_path(raw_path),
-                    "n": instance.n,
-                    "k": instance.k,
-                    "data_seed": data_seed_from_path(raw_path),
-                    "solver_seed": seed,
-                    "time_limit": args.time_limit,
-                    "feasible": "yes" if feasible else "no",
-                    "max_route": objective.max_route_length,
-                    "total_distance": objective.total_distance,
-                    "balance": objective.balance,
-                    "runtime": runtime,
-                    "iterations": iterations,
-                }
-            )
+        for time_limit in time_limits:
+            for seed in seeds:
+                run_index += 1
+                print(
+                    f"[{run_index}/{total_runs}] {args.algorithm} "
+                    f"{Path(raw_path).name} t={time_limit:g}s seed={seed}",
+                    flush=True,
+                )
+                solution, runtime, iterations = solve_once(
+                    args.algorithm,
+                    instance,
+                    time_limit,
+                    seed,
+                )
+                feasible = solution.is_feasible(instance)
+                objective = solution.evaluate(instance)
+                rows.append(
+                    {
+                        "timestamp": timestamp,
+                        "algorithm": args.algorithm,
+                        "config_name": config_name(args.algorithm),
+                        "config_json": config_json(args.algorithm),
+                        "instance": raw_path,
+                        "family": family_from_path(raw_path),
+                        "n": instance.n,
+                        "k": instance.k,
+                        "data_seed": data_seed_from_path(raw_path),
+                        "solver_seed": seed,
+                        "time_limit": time_limit,
+                        "feasible": "yes" if feasible else "no",
+                        "max_route": objective.max_route_length,
+                        "total_distance": objective.total_distance,
+                        "balance": objective.balance,
+                        "runtime": runtime,
+                        "iterations": iterations,
+                    }
+                )
 
     output_dir = ROOT / args.output_dir
     prefix = f"{stamp}_{args.algorithm}_best_test"

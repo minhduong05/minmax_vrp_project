@@ -130,7 +130,7 @@ def apply_reverse(routes, r_id, start, end):
     return new_routes
 
 # Sinh láng giềng
-def generate_candidate(routes, d, max_candidates = 200, deadline = None):
+def generate_candidate(routes, d, max_candidates = 100, deadline = None):
     """
     return: list tuple: (new_obj, move_type, tabu_attr, move_params)
     trong đó new_obj là tuple (max, sum, max-min)
