@@ -284,8 +284,8 @@ def main():
     best_routes, f_best, _ = tabu_search(
         N, K, d,
         max_inter=800,
-        tenure=7,
-        max_candidates=200,
+        tenure=15,
+        max_candidates=100,
         deadline=None
     )
 

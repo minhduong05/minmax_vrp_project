@@ -1,0 +1,11 @@
+{
+  "algorithm": "tabu_search",
+  "config_name": "tenure15_cand100",
+  "avg_max_route": 1000.9259357142857,
+  "std_max_route": 315.46689979242166,
+  "avg_runtime_s": 10.075554761904762,
+  "mean_relative_max_route": 0.9893517565802674,
+  "win_rate": 0.2619047619047619,
+  "mean_max_route_improvement_pct": 1.0648243419732561,
+  "median_max_route_improvement_pct": 0.0
+}

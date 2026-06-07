@@ -1,4 +1,4 @@
-"""Tune Tabu Search hyperparameters (min-max VRP) - cach nhanh.
+"""Tune Tabu Search hyperparameters (min-max VRP)
 
 Goi truc tiep ham tabu_search() voi luoi config (tenure x max_candidates),
 chay tren tap instance lay tu --instance-file (mac dinh tuning_seed01.txt),
@@ -10,13 +10,10 @@ khac nhau (qua greedy_init co xao tron nhe). Nho vay chay 3 seed cho ra 3 ket
 qua khac nhau, tinh duoc mean + std de chon config on dinh nhat.
 
 Cach chay (tu thu muc goc project):
-    python scripts/tune_tabu_configs.py \
-        --instance-file data/splits/tuning_seed01.txt \
-        --seeds 1,2,3 --time-limit 10 \
-        --output-dir output/config_tuning/tuning_seed01
+    python3 scripts/tune_tabu_configs.py  --instance-file data/splits/tuning_seed01.txt --seeds 1,2,3 --time-limit 10 --output-dir output/config_tuning/tuning_seed01
 
 Smoke test nhanh:
-    python scripts/tune_tabu_configs.py --preset smoke --seeds 1,2,3 --time-limit 3
+    python3 scripts/tune_tabu_configs.py --preset smoke --seeds 1,2,3 --time-limit 3
 """
 
 from __future__ import annotations
@@ -363,6 +360,59 @@ def main() -> int:
             "median_max_route_improvement_pct": best["median_max_route_improvement_pct"],
         }, indent=2), encoding="utf-8")
         print(f"\n  Da luu config tot nhat vao: {best_path}")
+
+        # ===== SINH meta.json (cung chuan voi ALNS/VNS) =====
+        meta = {
+            "algorithm": "tabu_search",
+            "preset": args.preset,
+            "instances": [p.as_posix() for p, _ in instances],
+            "seeds": seeds,
+            "time_limit": time_limit,
+            "top_k": args.top_k,
+            # Khong gian config da thu cua Tabu Search
+            "tabu_configs": [
+                {"name": f"tenure{t}_cand{c}", "tenure": t, "max_candidates": c}
+                for t in TENURE_VALUES for c in MAX_CANDIDATES_VALUES
+            ],
+            "baseline_config": {
+                "name": f"tenure{BASELINE_TENURE}_cand{BASELINE_CANDIDATES}",
+                "tenure": BASELINE_TENURE,
+                "max_candidates": BASELINE_CANDIDATES,
+            },
+            "use_local_search": USE_LOCAL_SEARCH,
+            # Giao thuc danh gia - giong het ALNS (chuan chung nhom)
+            "evaluation_protocol": {
+                "baseline_key": "same instance + same solver seed",
+                "primary_metric": "mean_relative_max_route",
+                "relative_max_route": "config_max_route / baseline_max_route",
+                "max_route_improvement_pct":
+                    "100 * (baseline_max_route - config_max_route) / baseline_max_route",
+                "win_rate": "share of runs where config max_route < baseline max_route",
+                "ranking_order": [
+                    "lower mean_relative_max_route",
+                    "higher win_rate",
+                    "higher mean_max_route_improvement_pct",
+                    "higher median_max_route_improvement_pct",
+                ],
+            },
+            # Ket qua: chi ghi final best (theo yeu cau)
+            "final_best": {
+                "config_name": bname,
+                "tenure": int(bname.split("_")[0].replace("tenure", "")),
+                "max_candidates": int(bname.split("_")[1].replace("cand", "")),
+                "mean_relative_max_route": best["mean_relative_max_route"],
+                "win_rate": best["win_rate"],
+                "mean_max_route_improvement_pct": best["mean_max_route_improvement_pct"],
+                "median_max_route_improvement_pct": best["median_max_route_improvement_pct"],
+                "avg_max_route": avg_max,
+                "std_max_route": std_max,
+                "avg_runtime_s": avg_rt,
+            },
+            "final_stage": "final_selection",
+        }
+        meta_path = output_dir / f"{stamp}_tabu_search_meta.json"
+        meta_path.write_text(json.dumps(meta, indent=2), encoding="utf-8")
+        print(f"  Da luu meta.json vao:        {meta_path}")
 
     # ----- Bang CHI TIET THEO SEED -----
     detail = defaultdict(list)
