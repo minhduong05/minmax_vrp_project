@@ -31,9 +31,6 @@ minmax_vrp/
     |   |-- operators_utils.py
     |   |-- repair.py
     |   `-- solver.py
-    |-- ortools_routing/
-    |   |-- __init__.py
-    |   `-- solver.py
     |-- tabu_search/
     |   |-- __init__.py
     |   |-- solver.py
@@ -82,7 +79,7 @@ Hien tai pipeline chinh dung `parser.py` o thu muc goc de doc raw data, nen `io.
 
 ## `algorithms/`
 
-Thu muc nay chua contract chung va cac thuat toan duoc giu lai: `alns`, `vns`, `tabu_search`, `ortools_routing`.
+Thu muc nay chua contract chung va cac thuat toan duoc giu lai: `alns`, `vns`, `tabu_search`.
 
 ### `algorithms/__init__.py`
 
@@ -109,7 +106,6 @@ Noi dang ky cac thuat toan duoc phep chay:
 - `alns`
 - `vns`
 - `tabu_search`
-- `ortools_routing`
 
 `run.py` goi `create_solver(name, config)` tu file nay de tao solver dung theo CLI.
 
@@ -170,25 +166,6 @@ Quan ly trong so operator ALNS. Operator nao tao nghiem tot hon se duoc tang tro
 ### `alns/acceptance.py`
 
 Chien luoc chap nhan nghiem moi bang simulated annealing. Giup ALNS thoat local optimum thay vi chi nhan nghiem tot hon.
-
-## `algorithms/ortools_routing/`
-
-Solver dua tren Google OR-Tools Routing.
-
-### `ortools_routing/__init__.py`
-
-Export `OrToolsRoutingAlgorithm`.
-
-### `ortools_routing/solver.py`
-
-Adapter va solver OR-Tools:
-
-- scale distance float sang int de OR-Tools xu ly;
-- cau hinh dimension `Distance`;
-- toi uu max route bang global span cost coefficient;
-- van giu arc cost lam tie-breaker cho total distance;
-- chay theo bai toan route mo cua project;
-- co fallback greedy neu OR-Tools khong tim duoc assignment.
 
 ## `algorithms/tabu_search/`
 

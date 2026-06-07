@@ -119,14 +119,26 @@ def build_parser() -> argparse.ArgumentParser:
     return parser
 
 
-def read_instance_file(path: str) -> list[str]:
+def read_instance_file(path: str) -> list[tuple[str, int | None]]:
     out = []
     for raw_line in (ROOT / path).read_text(encoding="utf-8").splitlines():
         line = raw_line.strip()
         if not line or line.startswith("#"):
             continue
-        out.append(line)
+        parts = line.split()
+        if len(parts) == 1:
+            out.append((parts[0], None))
+        elif len(parts) == 2:
+            out.append((parts[0], int(parts[1])))
+        else:
+            raise ValueError(
+                f"invalid manifest line in {path!r}: expected 'path' or 'path k', got {line!r}"
+            )
     return out
+
+
+def explicit_instances(raw_paths: list[str]) -> list[tuple[str, int | None]]:
+    return [(path, None) for path in raw_paths]
 
 
 def family_from_path(path: str) -> str:
@@ -289,15 +301,19 @@ def main() -> int:
         ]
     else:
         time_limits = [args.time_limit]
-    instance_paths = args.instances or read_instance_file(args.instance_file)
+    instance_specs = (
+        explicit_instances(args.instances)
+        if args.instances
+        else read_instance_file(args.instance_file)
+    )
     timestamp = datetime.now().isoformat(timespec="seconds")
     stamp = args.stamp or datetime.now().strftime("%Y%m%d_%H%M%S")
 
     rows = []
-    total_runs = len(instance_paths) * len(seeds) * len(time_limits)
+    total_runs = len(instance_specs) * len(seeds) * len(time_limits)
     run_index = 0
-    for raw_path in instance_paths:
-        instance = load_instance(ROOT / raw_path)
+    for raw_path, route_count in instance_specs:
+        instance = load_instance(ROOT / raw_path, k=route_count)
         for time_limit in time_limits:
             for seed in seeds:
                 run_index += 1

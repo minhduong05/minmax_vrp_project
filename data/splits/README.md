@@ -13,6 +13,13 @@ The split is seed-based: `seed01` instances are used for tuning, while matching 
 
 - `optional_k_sensitivity.txt`: instances that vary `k` and currently only have `seed01`. Keep them out of the main tuning/test split unless you want a separate sensitivity analysis.
 
+## Raw Benchmark Sets
+
+- `raw_cvrplib.txt`: CVRPLIB instances. `K` is inferred from filenames such as `A-n80-k10.vrp`.
+- `raw_tsplib_sqrtk.txt`: TSPLIB instances. TSPLIB files do not encode a vehicle count, so this manifest provides `K = round(sqrt(N))` as a second column.
+
+Use the raw sets as separate benchmark sections rather than mixing them into the generated-data test average.
+
 ## Example
 
 ```powershell

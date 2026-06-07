@@ -28,7 +28,7 @@ Dung de phan tich:
 - Chat luong trung binh cua thuat toan khi du lieu khong co cau truc dac biet.
 - Toc do mo rong khi tang `N`.
 - Do on dinh theo seed.
-- So sanh tong quat giua ALNS, VNS, Tabu, OR-Tools.
+- So sanh tong quat giua ALNS, VNS va Tabu.
 
 Neu thuat toan chay kem tren `uniform`, thuong la dau hieu thuat toan nen chua on.
 
