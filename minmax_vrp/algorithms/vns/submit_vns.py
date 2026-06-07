@@ -207,6 +207,8 @@ def best_relocate(routes, instance, deadline):
 
     for src in sources:
         route_src = routes[src]
+        if len(route_src) <= 2:
+            continue
         for i in range(1, len(route_src)):
             if time.perf_counter() >= deadline:
                 return None
@@ -462,7 +464,7 @@ def build_initial(instance, rng, deadline):
 def shake(routes, k, rng):
     new_routes = copy.deepcopy(routes)
     for _ in range(k):
-        valid_src = [idx for idx, r in enumerate(new_routes) if len(r) > 1]
+        valid_src = [idx for idx, r in enumerate(new_routes) if len(r) > 2]
         if not valid_src:
             break
         src = rng.choice(valid_src)

@@ -68,6 +68,11 @@ def greedy_init(N, K, d):
     # điểm xa nhất xử lý trước
     points = sorted(range(1, N + 1), key=lambda p: d[0][p], reverse=True)
 
+    for r_idx in range(min(K, len(points))):
+        point = points.pop(0)
+        routes[r_idx].append(point)
+        lengths[r_idx] = route_length(routes[r_idx], d)
+
     for point in points:
         best = None
         total = sum(lengths)
@@ -126,18 +131,19 @@ def generate_candidate(routes, d, max_candidates = 200, deadline = None):
 
     src = worst_idx
     #relocate
-    for src_pos in range(1, len(routes[src])):
-        if deadline is not None and time.perf_counter() >= deadline:
-            return candidates[:max_candidates]
-        point = routes[src][src_pos]
-        for dst in range(K):
-            if dst == src: continue
-            for dst_pos in range(len(routes[dst])):
-                new_routes = apply_relocate(routes, src, src_pos, dst, dst_pos)
-                new_obj = objective(new_routes, d)
-                tabu_attr = ('relocate', point, dst)
-                move_params = (src, src_pos, dst, dst_pos)
-                candidates.append((new_obj, 'relocate', tabu_attr, move_params))
+    if len(routes[src]) > 2:
+        for src_pos in range(1, len(routes[src])):
+            if deadline is not None and time.perf_counter() >= deadline:
+                return candidates[:max_candidates]
+            point = routes[src][src_pos]
+            for dst in range(K):
+                if dst == src: continue
+                for dst_pos in range(len(routes[dst])):
+                    new_routes = apply_relocate(routes, src, src_pos, dst, dst_pos)
+                    new_obj = objective(new_routes, d)
+                    tabu_attr = ('relocate', point, dst)
+                    move_params = (src, src_pos, dst, dst_pos)
+                    candidates.append((new_obj, 'relocate', tabu_attr, move_params))
 
     #swap
     for pos1 in range(1, len(routes[src])):

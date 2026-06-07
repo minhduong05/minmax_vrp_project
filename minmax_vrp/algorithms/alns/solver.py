@@ -6,6 +6,7 @@ from .acceptance import SimulatedAnnealingAcceptance
 from .adaptive import AdaptiveSelector
 from .construction import build_greedy_balanced
 from .destroy import default_destroy_operators
+from ..route_constraints import has_positive_route_lengths
 from ...models import Distance, Instance, Solution, better
 from .repair import default_repair_operators
 
@@ -67,6 +68,11 @@ class ALNSSolver:
             seed=self.config.seed,
         )
         current.assert_feasible(instance)
+        if not has_positive_route_lengths(current, instance):
+            raise ValueError(
+                "ALNS requires every vehicle to have a positive-length route; "
+                f"got n={instance.n}, k={instance.k}"
+            )
         best_sol = current.copy()
         self.acceptance.reset(best_sol.evaluate(instance).max_route_length)
 
@@ -85,7 +91,9 @@ class ALNSSolver:
                 continue
             candidate = repair_op(partial, removed, instance, self.rng)
 
-            if not candidate.is_feasible(instance):
+            if not candidate.is_feasible(instance) or not has_positive_route_lengths(
+                candidate, instance
+            ):
                 reward = self.config.reward_rejected
             else:
                 old_current = current

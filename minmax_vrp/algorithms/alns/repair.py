@@ -64,6 +64,7 @@ class GreedyMinMaxInsertion:
         solution = partial.copy()
         unassigned = removed[:]
         rng.shuffle(unassigned)
+        _activate_zero_length_routes(solution, unassigned, instance, rng)
         lengths = solution.route_lengths(instance)
         total = sum(lengths)
         while unassigned:
@@ -101,6 +102,7 @@ class RegretInsertion:
         solution = partial.copy()
         unassigned = removed[:]
         rng.shuffle(unassigned)
+        _activate_zero_length_routes(solution, unassigned, instance, rng)
         while unassigned:
             lengths = solution.route_lengths(instance)
             total = sum(lengths)
@@ -162,6 +164,7 @@ class BalancedInsertion:
         solution = partial.copy()
         unassigned = removed[:]
         rng.shuffle(unassigned)
+        _activate_zero_length_routes(solution, unassigned, instance, rng)
         lengths = solution.route_lengths(instance)
         total = sum(lengths)
         while unassigned:
@@ -196,6 +199,44 @@ def _max_route_length_except(lengths: list[Distance], skipped_route: int) -> Dis
         if route_index != skipped_route and length > best:
             best = length
     return best
+
+
+def _activate_zero_length_routes(
+    solution: Solution,
+    unassigned: list[int],
+    instance: Instance,
+    rng: random.Random,
+) -> None:
+    """Give every zero-length route a pickup before normal repair continues."""
+    inactive_routes = [
+        route_index
+        for route_index, route in enumerate(solution.routes)
+        if solution.route_length(route, instance.distance) <= 0.0
+    ]
+    rng.shuffle(inactive_routes)
+
+    for route_index in inactive_routes:
+        if not unassigned:
+            return
+        route = solution.routes[route_index]
+        old_length = solution.route_length(route, instance.distance)
+        if old_length > 0.0:
+            continue
+
+        best_choice = None
+        for point in unassigned:
+            for pos in range(1, len(route) + 1):
+                delta = insertion_delta(route, point, pos, instance)
+                new_length = old_length + delta
+                active_rank = 0 if new_length > 0.0 else 1
+                score = (active_rank, new_length if new_length > 0.0 else -new_length, delta)
+                if best_choice is None or score < best_choice[0]:
+                    best_choice = (score, point, pos)
+
+        assert best_choice is not None
+        _, point, pos = best_choice
+        route.insert(pos, point)
+        unassigned.remove(point)
 
 
 def _choice_score(choice):
