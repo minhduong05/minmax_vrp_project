@@ -1,3 +1,24 @@
+"""Tune Tabu Search hyperparameters (min-max VRP) - cach nhanh.
+
+Goi truc tiep ham tabu_search() voi luoi config (tenure x max_candidates),
+chay tren tap instance lay tu --instance-file (mac dinh tuning_seed01.txt),
+moi config x moi instance chay voi nhieu seed (mac dinh 1,2,3), time_limit 10s.
+Ghi ket qua ra CSV dung 16 cot theo output/templates/config_tuning.csv.
+
+tabu_search da duoc bo sung tham so seed: moi seed cho mot quy dao tim kiem
+khac nhau (qua greedy_init co xao tron nhe). Nho vay chay 3 seed cho ra 3 ket
+qua khac nhau, tinh duoc mean + std de chon config on dinh nhat.
+
+Cach chay (tu thu muc goc project):
+    python scripts/tune_tabu_configs.py \
+        --instance-file data/splits/tuning_seed01.txt \
+        --seeds 1,2,3 --time-limit 10 \
+        --output-dir output/config_tuning/tuning_seed01
+
+Smoke test nhanh:
+    python scripts/tune_tabu_configs.py --preset smoke --seeds 1,2,3 --time-limit 3
+"""
+
 from __future__ import annotations
 
 import argparse
@@ -294,6 +315,54 @@ def main() -> int:
     print("   - mean_imp%       = % cai thien trung binh (>0 tot hon).")
     print("   - median_imp%     = % cai thien o case dien hinh (it bi outlier keo).")
     print("   Neu mean_imp% cao nhung median_imp% thap => vai case cai thien manh keo mean len.")
+
+    # ===== TU DONG CHON CONFIG TOT NHAT =====
+    # Tieu chi chinh: mean_relative_max_route nho nhat (tot hon baseline nhat).
+    # summary da sap xep tang dan theo mean_rel -> phan tu dau la tot nhat.
+    best = summary[0] if summary else None
+
+    # Gom avg max_route, std, runtime cho moi config (de dien Bang 5.3)
+    stats_by_config = defaultdict(lambda: {"max_route": [], "runtime": []})
+    for r in rows:
+        stats_by_config[r["config_name"]]["max_route"].append(float(r["max_route"]))
+        stats_by_config[r["config_name"]]["runtime"].append(float(r["runtime"]))
+
+    if best is not None:
+        bname = best["config_name"]
+        bvals = stats_by_config[bname]["max_route"]
+        bruntime = stats_by_config[bname]["runtime"]
+        avg_max = statistics.mean(bvals)
+        std_max = statistics.pstdev(bvals) if len(bvals) > 1 else 0.0
+        avg_rt = statistics.mean(bruntime)
+
+        print("\n" + "=" * 78)
+        print(">>> CONFIG TOT NHAT (theo mean_relative_max_route nho nhat) <<<")
+        print("=" * 78)
+        print(f"  Cau hinh        : {bname}")
+        print(f"  mean_relative   : {best['mean_relative_max_route']:.4f} "
+              f"(tot hon baseline {best['mean_max_route_improvement_pct']:.2f}%)")
+        print(f"  win_rate        : {best['win_rate']:.4f}")
+        print(f"  median_imp%     : {best['median_max_route_improvement_pct']:.2f}")
+        print(f"\n  --- So lieu cho Bang 5.3 ---")
+        print(f"  Thuat toan      : Tabu Search")
+        print(f"  Cau hinh        : {bname}")
+        print(f"  Avg max route   : {avg_max:.2f}")
+        print(f"  Std             : {std_max:.2f}")
+        print(f"  Runtime (s)     : {avg_rt:.2f}")
+        # ghi them vao file JSON
+        best_path = output_dir / f"{stamp}_tabu_search_BEST.json"
+        best_path.write_text(json.dumps({
+            "algorithm": "tabu_search",
+            "config_name": bname,
+            "avg_max_route": avg_max,
+            "std_max_route": std_max,
+            "avg_runtime_s": avg_rt,
+            "mean_relative_max_route": best["mean_relative_max_route"],
+            "win_rate": best["win_rate"],
+            "mean_max_route_improvement_pct": best["mean_max_route_improvement_pct"],
+            "median_max_route_improvement_pct": best["median_max_route_improvement_pct"],
+        }, indent=2), encoding="utf-8")
+        print(f"\n  Da luu config tot nhat vao: {best_path}")
 
     # ----- Bang CHI TIET THEO SEED -----
     detail = defaultdict(list)
