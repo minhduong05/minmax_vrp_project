@@ -24,11 +24,14 @@ DEFAULT_OUTPUT_DIR = "output/algorithm_comparison"
 
 SUMMARY_HEADER = [
     "timestamp",
+    "time_limit",
     "algorithm",
     "config_name",
     "instances",
     "runs",
     "feasible_rate",
+    "mean_gap_pct",
+    "median_gap_pct",
     "mean_max_route",
     "std_instance_mean_max_route",
     "median_instance_mean_max_route",
@@ -42,6 +45,7 @@ SUMMARY_HEADER = [
 
 DETAIL_HEADER = [
     "timestamp",
+    "time_limit",
     "instance",
     "family",
     "n",
@@ -55,6 +59,7 @@ DETAIL_HEADER = [
     "mean_balance",
     "mean_runtime",
     "mean_iterations",
+    "gap_pct",
     "rank_by_max_route",
     "is_winner",
 ]
@@ -86,12 +91,12 @@ def mean(values):
 
 
 def aggregate_by_instance(rows: list[dict[str, str]], timestamp: str):
-    grouped: dict[tuple[str, str], list[dict[str, str]]] = defaultdict(list)
+    grouped: dict[tuple[str, str, str], list[dict[str, str]]] = defaultdict(list)
     for row in rows:
-        grouped[(row["instance"], row["algorithm"])].append(row)
+        grouped[(row["time_limit"], row["instance"], row["algorithm"])].append(row)
 
     detail_rows = []
-    for (instance, algorithm), group in grouped.items():
+    for (time_limit, instance, algorithm), group in grouped.items():
         max_routes = [float(row["max_route"]) for row in group]
         total_distances = [float(row["total_distance"]) for row in group]
         balances = [float(row["balance"]) for row in group]
@@ -102,6 +107,7 @@ def aggregate_by_instance(rows: list[dict[str, str]], timestamp: str):
         detail_rows.append(
             {
                 "timestamp": timestamp,
+                "time_limit": float(time_limit),
                 "instance": instance,
                 "family": first["family"],
                 "n": int(float(first["n"])),
@@ -120,25 +126,37 @@ def aggregate_by_instance(rows: list[dict[str, str]], timestamp: str):
             }
         )
 
-    by_instance: dict[str, list[dict[str, object]]] = defaultdict(list)
+    by_instance: dict[tuple[float, str], list[dict[str, object]]] = defaultdict(list)
     for row in detail_rows:
-        by_instance[str(row["instance"])].append(row)
+        by_instance[(float(row["time_limit"]), str(row["instance"]))].append(row)
     for group in by_instance.values():
         group.sort(key=lambda row: (float(row["mean_max_route"]), str(row["algorithm"])))
+        best_max_route = float(group[0]["mean_max_route"])
         for rank, row in enumerate(group, start=1):
             row["rank_by_max_route"] = rank
             row["is_winner"] = 1 if rank == 1 else 0
-    detail_rows.sort(key=lambda row: (str(row["instance"]), int(row["rank_by_max_route"])))
+            row["gap_pct"] = (
+                100.0 * (float(row["mean_max_route"]) - best_max_route) / best_max_route
+                if best_max_route > 0.0
+                else 0.0
+            )
+    detail_rows.sort(
+        key=lambda row: (
+            float(row["time_limit"]),
+            str(row["instance"]),
+            int(row["rank_by_max_route"]),
+        )
+    )
     return detail_rows
 
 
 def summarize(detail_rows: list[dict[str, object]], timestamp: str):
-    grouped: dict[str, list[dict[str, object]]] = defaultdict(list)
+    grouped: dict[tuple[float, str], list[dict[str, object]]] = defaultdict(list)
     for row in detail_rows:
-        grouped[str(row["algorithm"])].append(row)
+        grouped[(float(row["time_limit"]), str(row["algorithm"]))].append(row)
 
     summary_rows = []
-    for algorithm, group in grouped.items():
+    for (time_limit, algorithm), group in grouped.items():
         max_routes = [float(row["mean_max_route"]) for row in group]
         total_distances = [float(row["mean_total_distance"]) for row in group]
         balances = [float(row["mean_balance"]) for row in group]
@@ -147,15 +165,19 @@ def summarize(detail_rows: list[dict[str, object]], timestamp: str):
         feasible_rates = [float(row["feasible_rate"]) for row in group]
         winners = [int(row["is_winner"]) for row in group]
         ranks = [int(row["rank_by_max_route"]) for row in group]
+        gaps = [float(row["gap_pct"]) for row in group]
         runs = [int(row["runs"]) for row in group]
         summary_rows.append(
             {
                 "timestamp": timestamp,
+                "time_limit": time_limit,
                 "algorithm": algorithm,
                 "config_name": group[0]["config_name"],
                 "instances": len(group),
                 "runs": sum(runs),
                 "feasible_rate": mean(feasible_rates),
+                "mean_gap_pct": mean(gaps),
+                "median_gap_pct": statistics.median(gaps),
                 "mean_max_route": mean(max_routes),
                 "std_instance_mean_max_route": statistics.pstdev(max_routes)
                 if len(max_routes) > 1
@@ -171,7 +193,8 @@ def summarize(detail_rows: list[dict[str, object]], timestamp: str):
         )
     summary_rows.sort(
         key=lambda row: (
-            float(row["mean_max_route"]),
+            float(row["time_limit"]),
+            float(row["mean_gap_pct"]),
             -float(row["win_rate"]),
             float(row["mean_total_distance"]),
         )
@@ -211,10 +234,20 @@ def main() -> int:
     print(f"Read {len(paths)} run file(s).")
     print(f"Wrote detail: {detail_path}")
     print(f"Wrote summary: {summary_path}")
-    print("\nRanking by mean_max_route:")
-    for rank, row in enumerate(summary_rows, start=1):
+    print("\nRanking by time_limit and mean_max_route:")
+    last_time_limit = None
+    rank = 0
+    for row in summary_rows:
+        time_limit = float(row["time_limit"])
+        if time_limit != last_time_limit:
+            last_time_limit = time_limit
+            rank = 1
+            print(f"\ntime_limit={time_limit:g}s")
+        else:
+            rank += 1
         print(
             f"{rank}. {row['algorithm']}: "
+            f"mean_gap={float(row['mean_gap_pct']):.3f}%, "
             f"mean_max_route={float(row['mean_max_route']):.3f}, "
             f"win_rate={float(row['win_rate']):.3f}, "
             f"runtime={float(row['mean_runtime']):.3f}s"
