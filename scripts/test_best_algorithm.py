@@ -13,6 +13,7 @@ import statistics
 import sys
 import time
 from collections import defaultdict
+from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
 
@@ -49,7 +50,7 @@ BEST_VNS_CONFIG = {
 
 BEST_TABU_CONFIG = {
     "tenure": 15,
-    "max_candidates": 200,
+    "max_candidates": 100,
     "use_local_search": True,
 }
 
@@ -91,6 +92,12 @@ SUMMARY_HEADER = [
 ]
 
 
+@dataclass(frozen=True)
+class InstanceSpec:
+    path: str
+    k: int | None = None
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--algorithm", choices=ALGORITHM_CHOICES, required=True)
@@ -119,7 +126,7 @@ def build_parser() -> argparse.ArgumentParser:
     return parser
 
 
-def read_instance_file(path: str) -> list[tuple[str, int | None]]:
+def read_instance_file(path: str) -> list[InstanceSpec]:
     out = []
     for raw_line in (ROOT / path).read_text(encoding="utf-8").splitlines():
         line = raw_line.strip()
@@ -127,18 +134,16 @@ def read_instance_file(path: str) -> list[tuple[str, int | None]]:
             continue
         parts = line.split()
         if len(parts) == 1:
-            out.append((parts[0], None))
+            out.append(InstanceSpec(parts[0]))
         elif len(parts) == 2:
-            out.append((parts[0], int(parts[1])))
+            out.append(InstanceSpec(parts[0], int(parts[1])))
         else:
-            raise ValueError(
-                f"invalid manifest line in {path!r}: expected 'path' or 'path k', got {line!r}"
-            )
+            raise ValueError(f"invalid instance split line: {raw_line!r}")
     return out
 
 
-def explicit_instances(raw_paths: list[str]) -> list[tuple[str, int | None]]:
-    return [(path, None) for path in raw_paths]
+def instance_specs_from_args(paths: list[str]) -> list[InstanceSpec]:
+    return [InstanceSpec(path) for path in paths]
 
 
 def family_from_path(path: str) -> str:
@@ -164,7 +169,7 @@ def config_name(algorithm: str) -> str:
     if algorithm == "vns":
         return "shake10__cand24"
     if algorithm == "tabu_search":
-        return "tenure15_cand200"
+        return "tenure15_cand100"
     raise ValueError(algorithm)
 
 
@@ -302,7 +307,7 @@ def main() -> int:
     else:
         time_limits = [args.time_limit]
     instance_specs = (
-        explicit_instances(args.instances)
+        instance_specs_from_args(args.instances)
         if args.instances
         else read_instance_file(args.instance_file)
     )
@@ -312,8 +317,9 @@ def main() -> int:
     rows = []
     total_runs = len(instance_specs) * len(seeds) * len(time_limits)
     run_index = 0
-    for raw_path, route_count in instance_specs:
-        instance = load_instance(ROOT / raw_path, k=route_count)
+    for spec in instance_specs:
+        raw_path = spec.path
+        instance = load_instance(ROOT / raw_path, k=spec.k)
         for time_limit in time_limits:
             for seed in seeds:
                 run_index += 1
