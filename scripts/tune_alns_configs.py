@@ -257,6 +257,41 @@ def run_candidate(
     return rows
 
 
+def baseline_lookup(baseline_rows: list[dict[str, object]]) -> dict[tuple[str, int], dict[str, float]]:
+    lookup = {}
+    for row in baseline_rows:
+        key = (str(row["instance"]), int(row["seed"]))
+        lookup[key] = {
+            "max_route": float(row["max_route"]),
+            "total_distance": float(row["total_distance"]),
+        }
+    return lookup
+
+
+def add_relative_metrics(
+    rows: list[dict[str, object]],
+    baselines: dict[tuple[str, int], dict[str, float]],
+) -> None:
+    for row in rows:
+        key = (str(row["instance"]), int(row["seed"]))
+        baseline = baselines[key]
+        baseline_max_route = baseline["max_route"]
+        baseline_total_distance = baseline["total_distance"]
+        max_route = float(row["max_route"])
+        total_distance = float(row["total_distance"])
+
+        row["baseline_max_route"] = baseline_max_route
+        row["baseline_total_distance"] = baseline_total_distance
+        row["relative_max_route"] = max_route / baseline_max_route
+        row["relative_total_distance"] = total_distance / baseline_total_distance
+        row["max_route_improvement_pct"] = (
+            (baseline_max_route - max_route) / baseline_max_route
+        ) * 100.0
+        row["total_distance_improvement_pct"] = (
+            (baseline_total_distance - total_distance) / baseline_total_distance
+        ) * 100.0
+
+
 def aggregate(rows: list[dict[str, object]], key_field: str) -> list[dict[str, object]]:
     grouped: dict[str, list[dict[str, object]]] = defaultdict(list)
     for row in rows:
@@ -269,10 +304,17 @@ def aggregate(rows: list[dict[str, object]], key_field: str) -> list[dict[str, o
         balances = [float(row["balance"]) for row in group]
         runtimes = [float(row["runtime"]) for row in group]
         iterations = [int(row["iterations"]) for row in group]
+        relative_max_routes = [float(row["relative_max_route"]) for row in group]
+        max_route_improvements = [float(row["max_route_improvement_pct"]) for row in group]
         summaries.append(
             {
                 "group_key": key,
                 "runs": len(group),
+                "mean_relative_max_route": statistics.mean(relative_max_routes),
+                "mean_max_route_improvement_pct": statistics.mean(max_route_improvements),
+                "median_max_route_improvement_pct": statistics.median(max_route_improvements),
+                "win_rate": sum(1 for value in relative_max_routes if value < 1.0)
+                / len(relative_max_routes),
                 "mean_max_route": statistics.mean(max_routes),
                 "mean_total_distance": statistics.mean(total_distances),
                 "mean_balance": statistics.mean(balances),
@@ -282,7 +324,13 @@ def aggregate(rows: list[dict[str, object]], key_field: str) -> list[dict[str, o
                 "worst_max_route": max(max_routes),
             }
         )
-    summaries.sort(key=lambda row: (row["mean_max_route"], row["mean_total_distance"]))
+    summaries.sort(
+        key=lambda row: (
+            row["mean_relative_max_route"],
+            row["mean_max_route"],
+            row["mean_total_distance"],
+        )
+    )
     return summaries
 
 
@@ -309,10 +357,41 @@ def print_summary(title: str, summaries: list[dict[str, object]], top_k: int) ->
     for rank, row in enumerate(summaries[:top_k], start=1):
         print(
             f"{rank}. {row['group_key']}: "
-            f"mean_max={float(row['mean_max_route']):.3f}, "
+            f"mean_relative={float(row['mean_relative_max_route']):.5f}, "
+            f"improvement={float(row['mean_max_route_improvement_pct']):.3f}%, "
             f"mean_total={float(row['mean_total_distance']):.3f}, "
             f"runs={row['runs']}"
         )
+
+
+def selection_rows(
+    *,
+    section: str,
+    summaries: list[dict[str, object]],
+    limit: int,
+    note: str,
+) -> list[dict[str, object]]:
+    rows = []
+    for rank, row in enumerate(summaries[:limit], start=1):
+        rows.append(
+            {
+                "section": section,
+                "rank": rank,
+                "group_key": row["group_key"],
+                "runs": row["runs"],
+                "mean_relative_max_route": row["mean_relative_max_route"],
+                "win_rate": row["win_rate"],
+                "mean_max_route_improvement_pct": row["mean_max_route_improvement_pct"],
+                "median_max_route_improvement_pct": row[
+                    "median_max_route_improvement_pct"
+                ],
+                "mean_max_route": row["mean_max_route"],
+                "mean_total_distance": row["mean_total_distance"],
+                "stage": row["stage"],
+                "note": note,
+            }
+        )
+    return rows
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -328,6 +407,7 @@ def main(argv: list[str] | None = None) -> int:
 
     all_rows: list[dict[str, object]] = []
     all_summaries: list[dict[str, object]] = []
+    selected_rows: list[dict[str, object]] = []
     reward_rows: list[dict[str, object]] = []
 
     print(f"Loaded {len(instances)} instance(s), seeds={seeds}, time_limit={args.time_limit}s")
@@ -346,6 +426,8 @@ def main(argv: list[str] | None = None) -> int:
         time_limit=args.time_limit,
         timestamp=timestamp,
     )
+    baselines = baseline_lookup(baseline_rows)
+    add_relative_metrics(baseline_rows, baselines)
     all_rows.extend(baseline_rows)
     baseline_summary = aggregate(baseline_rows, "config_name")
     for row in baseline_summary:
@@ -376,6 +458,7 @@ def main(argv: list[str] | None = None) -> int:
                     timestamp=timestamp,
                 )
             )
+        add_relative_metrics(destroy_rows, baselines)
         all_rows.extend(destroy_rows)
         destroy_summary = aggregate(destroy_rows, "destroy_name")
         for row in destroy_summary:
@@ -383,6 +466,14 @@ def main(argv: list[str] | None = None) -> int:
         all_summaries.extend(destroy_summary)
         print_summary("Destroy tuning", destroy_summary, args.top_k)
         top_destroy = select_configs(DESTROY_CONFIGS, destroy_summary, args.top_k)
+        selected_rows.extend(
+            selection_rows(
+                section=f"destroy_top{args.top_k}",
+                summaries=destroy_summary,
+                limit=args.top_k,
+                note="selected_destroy",
+            )
+        )
 
         sa_rows = []
         for destroy in top_destroy:
@@ -404,6 +495,7 @@ def main(argv: list[str] | None = None) -> int:
                         timestamp=timestamp,
                     )
                 )
+        add_relative_metrics(sa_rows, baselines)
         all_rows.extend(sa_rows)
         sa_summary = aggregate(sa_rows, "sa_name")
         for row in sa_summary:
@@ -411,6 +503,14 @@ def main(argv: list[str] | None = None) -> int:
         all_summaries.extend(sa_summary)
         print_summary("SA tuning", sa_summary, args.top_k)
         top_sa = select_configs(SA_CONFIGS, sa_summary, args.top_k)
+        selected_rows.extend(
+            selection_rows(
+                section=f"sa_top{args.top_k}",
+                summaries=sa_summary,
+                limit=args.top_k,
+                note="selected_sa",
+            )
+        )
 
         for destroy in top_destroy:
             for sa in top_sa:
@@ -432,6 +532,7 @@ def main(argv: list[str] | None = None) -> int:
                             timestamp=timestamp,
                         )
                     )
+        add_relative_metrics(reward_rows, baselines)
         all_rows.extend(reward_rows)
         reward_summary = aggregate(reward_rows, "reward_name")
         for row in reward_summary:
@@ -439,6 +540,14 @@ def main(argv: list[str] | None = None) -> int:
         all_summaries.extend(reward_summary)
         print_summary("Reward tuning", reward_summary, args.top_k)
         top_reward = select_configs(REWARD_CONFIGS, reward_summary, args.top_k)
+        selected_rows.extend(
+            selection_rows(
+                section=f"reward_top{args.top_k}",
+                summaries=reward_summary,
+                limit=args.top_k,
+                note="selected_reward",
+            )
+        )
 
     final_stage = "final_selection"
     if args.run_final_only or args.rerun_final_validation:
@@ -464,6 +573,7 @@ def main(argv: list[str] | None = None) -> int:
                             timestamp=timestamp,
                         )
                     )
+        add_relative_metrics(final_rows, baselines)
         all_rows.extend(final_rows)
     else:
         selected_reward_names = {str(reward["name"]) for reward in top_reward}
@@ -475,12 +585,31 @@ def main(argv: list[str] | None = None) -> int:
         row["stage"] = final_stage
     all_summaries.extend(final_summary)
     print_summary(final_stage.replace("_", " ").title(), final_summary, args.top_k)
+    final_limit = len(top_destroy) * len(top_sa) * len(top_reward)
+    selected_rows.extend(
+        selection_rows(
+            section=f"final_top{final_limit}",
+            summaries=final_summary,
+            limit=final_limit,
+            note="final_candidate",
+        )
+    )
+    selected_rows.extend(
+        selection_rows(
+            section="final_choice",
+            summaries=final_summary,
+            limit=1,
+            note="chosen_config",
+        )
+    )
 
     rows_path = output_dir / f"{timestamp}_alns_tuning_runs.csv"
     summary_path = output_dir / f"{timestamp}_alns_tuning_summary.csv"
+    selection_path = output_dir / f"{timestamp}_alns_tuning_selection.csv"
     meta_path = output_dir / f"{timestamp}_alns_tuning_meta.json"
     write_csv(rows_path, all_rows)
     write_csv(summary_path, all_summaries)
+    write_csv(selection_path, selected_rows)
     meta_path.write_text(
         json.dumps(
             {
@@ -492,6 +621,23 @@ def main(argv: list[str] | None = None) -> int:
                 "destroy_configs": DESTROY_CONFIGS,
                 "sa_configs": SA_CONFIGS,
                 "reward_configs": REWARD_CONFIGS,
+                "evaluation_protocol": {
+                    "baseline_key": "same instance + same solver seed",
+                    "primary_metric": "mean_relative_max_route",
+                    "relative_max_route": "config_max_route / baseline_max_route",
+                    "max_route_improvement_pct": (
+                        "100 * (baseline_max_route - config_max_route) "
+                        "/ baseline_max_route"
+                    ),
+                    "win_rate": "share of runs where config max_route < baseline max_route",
+                    "ranking_order": [
+                        "lower mean_relative_max_route",
+                        "higher win_rate",
+                        "higher mean_max_route_improvement_pct",
+                        "higher median_max_route_improvement_pct",
+                        "lower mean_total_distance",
+                    ],
+                },
                 "selected_destroy": [config_without_name(destroy) for destroy in top_destroy],
                 "selected_sa": [config_without_name(sa) for sa in top_sa],
                 "selected_reward": [config_without_name(reward) for reward in top_reward],
@@ -504,6 +650,7 @@ def main(argv: list[str] | None = None) -> int:
 
     print(f"\nWrote runs: {rows_path}")
     print(f"Wrote summary: {summary_path}")
+    print(f"Wrote selection: {selection_path}")
     print(f"Wrote meta: {meta_path}")
     return 0
 
