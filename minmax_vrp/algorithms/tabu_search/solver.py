@@ -4,6 +4,7 @@ import time
 
 from ...models import Instance, Solution
 from ..base import AlgorithmConfig, AlgorithmResult, SolverAlgorithm
+from ..route_constraints import ensure_positive_route_lengths
 from .tabu_search import local_clear, tabu_search
 
 
@@ -30,6 +31,7 @@ class TabuSearchAlgorithm(SolverAlgorithm):
             )
 
         solution = Solution(routes)
+        solution = ensure_positive_route_lengths(solution, instance)
         solution.assert_feasible(instance)
         runtime = time.perf_counter() - start
         return AlgorithmResult(

@@ -6,6 +6,7 @@ from ortools.constraint_solver import pywrapcp, routing_enums_pb2
 
 from ...models import Distance, Instance, Solution
 from ..base import AlgorithmConfig, AlgorithmResult, SolverAlgorithm
+from ..route_constraints import ensure_positive_route_lengths
 
 
 class OrToolsRoutingAlgorithm(SolverAlgorithm):
@@ -20,7 +21,9 @@ class OrToolsRoutingAlgorithm(SolverAlgorithm):
         if solution is None:
             solution = _fallback_solution(instance)
             stats["fallback_used"] = True
+        solution = ensure_positive_route_lengths(solution, instance)
         solution.assert_feasible(instance)
+        stats["max_route_length"] = solution.evaluate(instance).max_route_length
         runtime = time.perf_counter() - start
         return AlgorithmResult(
             best=solution,
