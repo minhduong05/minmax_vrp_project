@@ -1,3 +1,4 @@
+import random
 import sys
 import copy
 import time
@@ -61,17 +62,27 @@ def insertion_delta(route, point, position, d):
     return d[prev][point]
 
 #Khởi tạo tham lam
-def greedy_init(N, K, d):
+def greedy_init(N, K, d, rng=None):
     routes = [[0] for _ in range(K)]
     lengths = [0.0] * K
 
     # điểm xa nhất xử lý trước
     points = sorted(range(1, N + 1), key=lambda p: d[0][p], reverse=True)
 
-    for r_idx in range(min(K, len(points))):
-        point = points.pop(0)
-        routes[r_idx].append(point)
-        lengths[r_idx] = route_length(routes[r_idx], d)
+    if rng is not None:
+        shuffled = points[:]
+        rng.shuffle(shuffled)
+        # lay ~mot nua dau theo thu tu xa-nhat, mot nua sau theo thu tu ngau nhien
+        cut = len(points) // 2
+        kept = points[:cut]
+        kept_set = set(kept)
+        tail = [p for p in shuffled if p not in kept_set]
+        points = kept + tail
+        # them mot it xao tron toan cuc nhe cho da dang hon
+        for _ in range(max(1, len(points) // 4)):
+            i = rng.randrange(len(points))
+            j = rng.randrange(len(points))
+            points[i], points[j] = points[j], points[i]
 
     for point in points:
         best = None
@@ -131,19 +142,18 @@ def generate_candidate(routes, d, max_candidates = 200, deadline = None):
 
     src = worst_idx
     #relocate
-    if len(routes[src]) > 2:
-        for src_pos in range(1, len(routes[src])):
-            if deadline is not None and time.perf_counter() >= deadline:
-                return candidates[:max_candidates]
-            point = routes[src][src_pos]
-            for dst in range(K):
-                if dst == src: continue
-                for dst_pos in range(len(routes[dst])):
-                    new_routes = apply_relocate(routes, src, src_pos, dst, dst_pos)
-                    new_obj = objective(new_routes, d)
-                    tabu_attr = ('relocate', point, dst)
-                    move_params = (src, src_pos, dst, dst_pos)
-                    candidates.append((new_obj, 'relocate', tabu_attr, move_params))
+    for src_pos in range(1, len(routes[src])):
+        if deadline is not None and time.perf_counter() >= deadline:
+            return candidates[:max_candidates]
+        point = routes[src][src_pos]
+        for dst in range(K):
+            if dst == src: continue
+            for dst_pos in range(len(routes[dst])):
+                new_routes = apply_relocate(routes, src, src_pos, dst, dst_pos)
+                new_obj = objective(new_routes, d)
+                tabu_attr = ('relocate', point, dst)
+                move_params = (src, src_pos, dst, dst_pos)
+                candidates.append((new_obj, 'relocate', tabu_attr, move_params))
 
     #swap
     for pos1 in range(1, len(routes[src])):
@@ -177,9 +187,10 @@ def generate_candidate(routes, d, max_candidates = 200, deadline = None):
     return candidates[:max_candidates]
 
 # tabu search
-def tabu_search(N, K, d, max_inter=1000, tenure=7, max_candidates=200,
-                deadline=None):
-    routes = greedy_init(N, K, d)
+def tabu_search(N, K, d, max_inter=1000, tenure=7, max_candidates=200, deadline=None, seed=None):
+
+    rng = random.Random(seed) if seed is not None else None
+    routes = greedy_init(N, K, d, rng)
     best_routes = copy.deepcopy(routes)
     f_best = objective(routes, d)
 
