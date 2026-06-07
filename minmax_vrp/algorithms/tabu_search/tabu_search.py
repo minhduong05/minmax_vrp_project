@@ -187,7 +187,7 @@ def generate_candidate(routes, d, max_candidates = 200, deadline = None):
     return candidates[:max_candidates]
 
 # tabu search
-def tabu_search(N, K, d, max_inter=1000, tenure=7, max_candidates=200, deadline=None, seed=None):
+def tabu_search(N, K, d, max_inter=1000, tenure=15, max_candidates=100, deadline=None, seed=None):
 
     rng = random.Random(seed) if seed is not None else None
     routes = greedy_init(N, K, d, rng)

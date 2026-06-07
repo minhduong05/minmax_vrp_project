@@ -1,0 +1,2 @@
+timestamp,algorithm,config_name,instances,runs,feasible_rate,mean_max_route,std_instance_mean_max_route,median_instance_mean_max_route,mean_total_distance,mean_balance,mean_runtime,mean_iterations,win_rate,rank_sum
+2026-06-07T21:39:42,alns,small_destroy__strict__aggressive_best,1,1,1.0,1810.9840535635997,0.0,1810.9840535635997,8523.986355055189,181.1125286240997,0.020222499999363208,16.0,1.0,1

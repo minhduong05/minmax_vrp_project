@@ -5,9 +5,9 @@ import copy
 import sys
 
 # hyperpara
-TIME_LIMIT = 3.8
+TIME_LIMIT = 10
 RANDOM_SEED = 42
-MAX_SHAKE_LEVEL = 5
+MAX_SHAKE_LEVEL = 7
 CANDIDATE_LIMIT = 24  # tham lam
 MAX_VND_LEVEL = 3
 # Nguong cai thien toi thieu: chi nhan nuoc di khi objective tot hon > IMPROVE_EPS.
@@ -28,6 +28,7 @@ def _improved(new_obj, current_obj):
         if a > b + IMPROVE_EPS:
             return False
     return False
+
 
 # thấy bảo array tính toán nhanh hơn list :))
 # boi den gsa (
@@ -513,9 +514,7 @@ def solve(instance, return_stats=False, on_checkpoint=None):
     routes = vnd(routes, instance, deadline)
 
     best_routes = routes
-    best_obj = objective_from_lengths(
-        all_routes_length(routes, instance.distance)
-    )
+    best_obj = objective_from_lengths(all_routes_length(routes, instance.distance))
 
     def _checkpoint(checkpoint_type):
         if on_checkpoint is not None:
@@ -536,9 +535,7 @@ def solve(instance, return_stats=False, on_checkpoint=None):
             iterations += 1
             shaken = shake(best_routes, k, rng)
             local_opt = vnd(shaken, instance, deadline)
-            local_obj = objective_from_lengths(
-                all_routes_length(local_opt, instance.distance)
-            )
+            local_obj = objective_from_lengths(all_routes_length(local_opt, instance.distance))
 
             if local_obj < best_obj:
                 best_routes = local_opt

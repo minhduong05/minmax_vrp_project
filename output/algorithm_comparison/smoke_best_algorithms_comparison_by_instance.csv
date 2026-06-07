@@ -1,0 +1,2 @@
+timestamp,instance,family,n,k,algorithm,config_name,runs,feasible_rate,mean_max_route,mean_total_distance,mean_balance,mean_runtime,mean_iterations,rank_by_max_route,is_winner
+2026-06-07T21:39:42,data\generated\uniform\uniform_center_n100_k5_seed02.txt,uniform,100,5,alns,small_destroy__strict__aggressive_best,1,1.0,1810.9840535635997,8523.986355055189,181.1125286240997,0.020222499999363208,16,1,1

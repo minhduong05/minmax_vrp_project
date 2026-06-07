@@ -15,14 +15,14 @@ from .repair import default_repair_operators
 class ALNSConfig:
     time_limit: float = 10.0
     seed: int = 99
-    q_min_ratio: float = 0.05
-    q_max_ratio: float = 0.20
-    initial_temperature: float = 1000.0
+    q_min_ratio: float = 0.02
+    q_max_ratio: float = 0.10
+    initial_temperature: float = 300.0
     cooling_rate: float = 0.999
     reaction: float = 0.20
     segment_length: int = 50
 
-    reward_global_best: float = 10.0
+    reward_global_best: float = 20.0
     reward_current_improved: float = 5.0
     reward_accepted: float = 1.0
     reward_rejected: float = 0.0

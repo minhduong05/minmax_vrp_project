@@ -1,0 +1,4 @@
+timestamp,algorithm,config_name,group_type,group_key,runs,feasible_rate,mean_max_route,std_max_route,median_max_route,mean_total_distance,mean_balance,mean_runtime,mean_iterations
+2026-06-07T21:39:32,alns,small_destroy__strict__aggressive_best,overall,all,1,1.0,1810.9840535635997,0.0,1810.9840535635997,8523.986355055189,181.1125286240997,0.020222499999363208,16
+2026-06-07T21:39:32,alns,small_destroy__strict__aggressive_best,size,"n=100,k=5",1,1.0,1810.9840535635997,0.0,1810.9840535635997,8523.986355055189,181.1125286240997,0.020222499999363208,16
+2026-06-07T21:39:32,alns,small_destroy__strict__aggressive_best,family,uniform,1,1.0,1810.9840535635997,0.0,1810.9840535635997,8523.986355055189,181.1125286240997,0.020222499999363208,16
