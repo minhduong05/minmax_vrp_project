@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 
-from ..models import Distance, Instance, Solution
+from ..models import Instance, Objective, Solution
 
 
 @dataclass
@@ -16,10 +16,11 @@ class AlgorithmConfig:
 
     initial_temperature: float = 300.0
     cooling_rate: float = 0.999
+    segment_length: int = 50
 
-    reward_global_best: float = 20.0
+    reward_global_best: float = 10.0
     reward_current_improved: float = 5.0
-    reward_accepted: float = 1.0
+    reward_accepted: float = 2.0
     reward_rejected: float = 0.0
 
 
@@ -29,7 +30,7 @@ class AlgorithmResult:
     algorithm: str
     runtime: float
     iterations: int = 1
-    best_objective: tuple[Distance, Distance, Distance] = (0.0, 0.0, 0.0)
+    best_objective: Objective = ((), 0.0)
     stats: dict[str, object] = field(default_factory=dict)
 
 

@@ -1,39 +1,49 @@
+from __future__ import annotations
+
 import math
 import random
 from dataclasses import dataclass
 
-from ...models import Distance, Instance, Solution
+from ...models import Instance, Solution, better
 
 
 @dataclass
 class SimulatedAnnealingAcceptance:
-    """Accept improving moves, and sometimes accept worsening moves.
+    """Compatibility facade for the project-level ALNS acceptance API."""
 
-    The value used is the lexicographic objective converted to a scalar by giving
-    max_route_length a very large priority over total_distance.
-    """
-
-    initial_temperature: float = 1000.0
+    initial_temperature: float = 300.0
     cooling_rate: float = 0.999
-    min_temperature: float = 1e-6
-    total_weight: float = 1e-6
-    temperature: float = 1000.0
 
-    def reset(self, initial_objective: Distance) -> None:
-        self.temperature = max(self.initial_temperature, 0.05 * max(1, initial_objective))
+    def __post_init__(self) -> None:
+        if self.initial_temperature < 0.0:
+            raise ValueError("initial_temperature must be non-negative")
+        if not 0.0 < self.cooling_rate <= 1.0:
+            raise ValueError("cooling_rate must be in (0, 1]")
+        self.temperature = self.initial_temperature
+
+    def reset(self, objective_scale: float | None = None) -> None:
+        del objective_scale
+        self.temperature = self.initial_temperature
 
     def scalar_value(self, solution: Solution, instance: Instance) -> float:
-        ev = solution.evaluate(instance)
-        # max route dominates, total distance breaks ties softly.
-        return ev.max_route_length + self.total_weight * ev.total_distance
+        evaluation = solution.evaluate(instance)
+        return evaluation.max_route_length * 1_000_000.0 + evaluation.total_distance
 
-    def accept(self, current: Solution, candidate: Solution, instance: Instance, rng: random.Random) -> bool:
-        cur = self.scalar_value(current, instance)
-        new = self.scalar_value(candidate, instance)
-        if new <= cur:
-            accepted = True
-        else:
-            probability = math.exp(-(new - cur) / max(self.temperature, self.min_temperature))
-            accepted = rng.random() < probability
-        self.temperature = max(self.min_temperature, self.temperature * self.cooling_rate)
+    def accept(
+        self,
+        current: Solution,
+        candidate: Solution,
+        instance: Instance,
+        rng: random.Random,
+    ) -> bool:
+        if better(candidate, current, instance):
+            self.temperature *= self.cooling_rate
+            return True
+        if self.temperature <= 0.0:
+            self.temperature *= self.cooling_rate
+            return False
+        delta = self.scalar_value(candidate, instance) - self.scalar_value(current, instance)
+        probability = math.exp(-delta / max(self.temperature, 1e-12))
+        accepted = rng.random() < probability
+        self.temperature *= self.cooling_rate
         return accepted

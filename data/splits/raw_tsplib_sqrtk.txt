@@ -1,0 +1,11 @@
+# TSPLIB files do not encode K. We use K = round(sqrt(N)).
+data/raw/tsplib/berlin52.tsp 7
+data/raw/tsplib/eil51.tsp 7
+data/raw/tsplib/eil76.tsp 9
+data/raw/tsplib/rat99.tsp 10
+data/raw/tsplib/kroA100.tsp 10
+data/raw/tsplib/ch130.tsp 11
+data/raw/tsplib/kroA200.tsp 14
+data/raw/tsplib/lin318.tsp 18
+data/raw/tsplib/pcb442.tsp 21
+data/raw/tsplib/u724.tsp 27

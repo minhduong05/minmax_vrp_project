@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from .alns import ALNSAlgorithm
 from .base import AlgorithmConfig, SolverAlgorithm
-from .ortools_routing import OrToolsRoutingAlgorithm
 from .tabu_search import TabuSearchAlgorithm
 from .vns import VNSAlgorithm
 
@@ -11,7 +10,6 @@ ALGORITHMS: dict[str, type[SolverAlgorithm]] = {
     ALNSAlgorithm.name: ALNSAlgorithm,
     VNSAlgorithm.name: VNSAlgorithm,
     TabuSearchAlgorithm.name: TabuSearchAlgorithm,
-    OrToolsRoutingAlgorithm.name: OrToolsRoutingAlgorithm,
 }
 ALGORITHM_NAMES = tuple(ALGORITHMS)
 

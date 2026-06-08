@@ -1,0 +1,11 @@
+timestamp,algorithm,config_name,config_json,instance,family,n,k,data_seed,solver_seed,time_limit,feasible,max_route,total_distance,balance,runtime,iterations
+2026-06-08T08:16:13,vns,shake7__cand24,"{""candidate_limit"":24,""max_shake_level"":7}",data/raw/tsplib/berlin52.tsp,unknown,51,7,,1,10.0,yes,1242.9076620618264,8477.774742238787,66.00216990842864,10.000045499999942,7368
+2026-06-08T08:16:13,vns,shake7__cand24,"{""candidate_limit"":24,""max_shake_level"":7}",data/raw/tsplib/eil51.tsp,unknown,50,7,,1,10.0,yes,66.90104749888799,449.4724612940654,5.551804743017755,10.000196499999902,5447
+2026-06-08T08:16:13,vns,shake7__cand24,"{""candidate_limit"":24,""max_shake_level"":7}",data/raw/tsplib/eil76.tsp,unknown,75,9,,1,10.0,yes,71.32085050091472,625.9875901597186,5.59178393410339,10.000454300000001,1153
+2026-06-08T08:16:13,vns,shake7__cand24,"{""candidate_limit"":24,""max_shake_level"":7}",data/raw/tsplib/rat99.tsp,unknown,98,10,,1,10.0,yes,222.47922223089824,2208.7185228806343,3.989988604561688,10.000128099999984,1192
+2026-06-08T08:16:13,vns,shake7__cand24,"{""candidate_limit"":24,""max_shake_level"":7}",data/raw/tsplib/kroA100.tsp,unknown,99,10,,1,10.0,yes,2942.303777527539,29017.28694522515,142.93035712320852,10.000193099999933,849
+2026-06-08T08:16:13,vns,shake7__cand24,"{""candidate_limit"":24,""max_shake_level"":7}",data/raw/tsplib/ch130.tsp,unknown,129,11,,1,10.0,yes,709.7301996670592,7735.820756052109,16.442260456513964,10.000171200000068,854
+2026-06-08T08:16:13,vns,shake7__cand24,"{""candidate_limit"":24,""max_shake_level"":7}",data/raw/tsplib/kroA200.tsp,unknown,199,14,,1,10.0,yes,3363.8117354868923,45810.62756985055,158.62519515252507,10.000280599999996,512
+2026-06-08T08:16:13,vns,shake7__cand24,"{""candidate_limit"":24,""max_shake_level"":7}",data/raw/tsplib/lin318.tsp,unknown,317,18,,1,10.0,yes,4865.583007204789,84999.32476626537,219.386128848726,10.000198899999987,800
+2026-06-08T08:16:13,vns,shake7__cand24,"{""candidate_limit"":24,""max_shake_level"":7}",data/raw/tsplib/pcb442.tsp,unknown,441,21,,1,10.0,yes,4553.789901166878,94745.24041429773,101.43642471058138,10.000329599999986,292
+2026-06-08T08:16:13,vns,shake7__cand24,"{""candidate_limit"":24,""max_shake_level"":7}",data/raw/tsplib/u724.tsp,unknown,723,27,,1,10.0,yes,3303.1429612831953,88757.9569631154,45.55255767810968,10.000242999999955,98

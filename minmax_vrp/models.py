@@ -1,6 +1,7 @@
 from dataclasses import dataclass
 
 Distance = float
+Objective = tuple[tuple[Distance, ...], Distance]
 
 
 @dataclass(frozen=True)
@@ -39,10 +40,15 @@ class Evaluation:
     max_route_length: Distance
     total_distance: Distance
     balance: Distance
+    route_lengths: tuple[Distance, ...]
 
-    def as_tuple(self) -> tuple[Distance, Distance, Distance]:
-        """Lexicographic objective: first minimize max route, then total, then balance."""
-        return (self.max_route_length, self.total_distance, self.balance)
+    def as_tuple(self) -> Objective:
+        """Objective tuple: sorted route lengths descending, then total distance."""
+        return route_lengths_objective(self.route_lengths)
+
+    def rank_tuple(self) -> Objective:
+        """Search objective: sorted route lengths descending, then total distance."""
+        return self.as_tuple()
 
 
 @dataclass
@@ -86,7 +92,7 @@ class Solution:
         max_len = max(lengths) if lengths else 0
         total = sum(lengths)
         balance = max_len - min(lengths) if lengths else 0
-        return Evaluation(max_len, total, balance)
+        return Evaluation(max_len, total, balance, tuple(lengths))
 
     def is_feasible(self, instance: Instance) -> bool:
         if len(self.routes) != instance.k:
@@ -112,13 +118,15 @@ class Solution:
             raise ValueError("solution is not feasible for the instance")
 
 
-def better(a: Solution, b: Solution, instance: Instance) -> bool:
-    """Return True if a is better than b under lexicographic min-max objective."""
-    eval_a = a.evaluate(instance)
-    eval_b = b.evaluate(instance)
+def route_lengths_objective(lengths: list[Distance] | tuple[Distance, ...]) -> Objective:
+    return (tuple(sorted(lengths, reverse=True)), sum(lengths))
 
-    if eval_a.max_route_length != eval_b.max_route_length:
-        return eval_a.max_route_length < eval_b.max_route_length
-    if eval_a.total_distance != eval_b.total_distance:
-        return eval_a.total_distance < eval_b.total_distance
-    return eval_a.balance < eval_b.balance
+
+def objective(solution: Solution, instance: Instance) -> Objective:
+    lengths = solution.route_lengths(instance)
+    return route_lengths_objective(lengths)
+
+
+def better(a: Solution, b: Solution, instance: Instance) -> bool:
+    """Return True if a is better under the lexicographic route-length objective."""
+    return objective(a, instance) < objective(b, instance)

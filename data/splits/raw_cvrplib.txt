@@ -1,0 +1,9 @@
+data/raw/cvrplib/A-n32-k5.vrp
+data/raw/cvrplib/A-n60-k9.vrp
+data/raw/cvrplib/A-n80-k10.vrp
+data/raw/cvrplib/M-n151-k12.vrp
+data/raw/cvrplib/P-n101-k4.vrp
+data/raw/cvrplib/X-n251-k28.vrp
+data/raw/cvrplib/X-n459-k26.vrp
+data/raw/cvrplib/X-n749-k98.vrp
+data/raw/cvrplib/X-n1001-k43.vrp

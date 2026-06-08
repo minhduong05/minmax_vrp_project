@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from ..models import Distance, Instance, Solution
+from ..models import Distance, Instance, Objective, Solution, route_lengths_objective
 
 
 def has_positive_route_lengths(solution: Solution, instance: Instance) -> bool:
@@ -89,11 +89,8 @@ def _activation_score(
     target_route: int,
     target_length: Distance,
     instance: Instance,
-) -> tuple[Distance, Distance, Distance]:
+) -> Objective:
     lengths = solution.route_lengths(instance)
     lengths[source_route] = source_length
     lengths[target_route] = target_length
-    max_length = max(lengths)
-    total = sum(lengths)
-    balance = max_length - min(lengths)
-    return (max_length, total, balance)
+    return route_lengths_objective(lengths)
