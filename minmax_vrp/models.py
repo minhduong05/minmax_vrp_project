@@ -41,8 +41,12 @@ class Evaluation:
     balance: Distance
 
     def as_tuple(self) -> tuple[Distance, Distance, Distance]:
-        """Lexicographic objective: first minimize max route, then total, then balance."""
-        return (self.max_route_length, self.total_distance, self.balance)
+        """Objective tuple: max route, balance, then total distance."""
+        return (self.max_route_length, self.balance, self.total_distance)
+
+    def rank_tuple(self) -> tuple[Distance, Distance, Distance]:
+        """Search objective: max route, balance, then total distance."""
+        return (self.max_route_length, self.balance, self.total_distance)
 
 
 @dataclass
@@ -113,12 +117,8 @@ class Solution:
 
 
 def better(a: Solution, b: Solution, instance: Instance) -> bool:
-    """Return True if a is better than b under lexicographic min-max objective."""
+    """Return True if a is better under the lexicographic min-max objective."""
     eval_a = a.evaluate(instance)
     eval_b = b.evaluate(instance)
 
-    if eval_a.max_route_length != eval_b.max_route_length:
-        return eval_a.max_route_length < eval_b.max_route_length
-    if eval_a.total_distance != eval_b.total_distance:
-        return eval_a.total_distance < eval_b.total_distance
-    return eval_a.balance < eval_b.balance
+    return eval_a.rank_tuple() < eval_b.rank_tuple()

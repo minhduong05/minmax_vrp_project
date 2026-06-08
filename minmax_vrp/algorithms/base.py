@@ -17,9 +17,9 @@ class AlgorithmConfig:
     initial_temperature: float = 300.0
     cooling_rate: float = 0.999
 
-    reward_global_best: float = 20.0
+    reward_global_best: float = 10.0
     reward_current_improved: float = 5.0
-    reward_accepted: float = 1.0
+    reward_accepted: float = 2.0
     reward_rejected: float = 0.0
 
 

@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from ...models import Distance, Instance, Solution
 from .operators_utils import insertion_delta
 
-InsertionScore = tuple[Distance, Distance, Distance]
+InsertionScore = tuple[Distance, Distance, Distance, Distance]
 InsertionChoice = tuple[InsertionScore, int, int, Distance]
 
 
@@ -36,14 +36,16 @@ def _best_insertion_for_point_with_state(
     best = None
     for r_idx, route in enumerate(solution.routes):
         old_len = lengths[r_idx]
-        other_max = _max_route_length_except(lengths, r_idx)
+        other_max, other_min = _route_length_extremes_except(lengths, r_idx)
         for pos in range(1, len(route) + 1):
             delta = insertion_delta(route, point, pos, instance)
             new_len = old_len + delta
             new_max = max(other_max, new_len)
+            new_min = new_len if other_min is None else min(other_min, new_len)
+            new_balance = new_max - new_min
             new_total = total + delta
-            weighted = alpha * new_max + beta * delta
-            score = (weighted, new_max, new_total)
+            cost_tiebreak = alpha * new_total + beta * delta
+            score = (new_max, new_balance, new_total, cost_tiebreak)
             if best is None or _insertion_score_is_better(score, best[0]):
                 best = (score, r_idx, pos, delta)
     assert best is not None
@@ -112,13 +114,17 @@ class RegretInsertion:
             for point in unassigned:
                 choices = []
                 for r_idx, route in enumerate(solution.routes):
-                    other_max = _max_route_length_except(lengths, r_idx)
+                    other_max, other_min = _route_length_extremes_except(lengths, r_idx)
                     for pos in range(1, len(route) + 1):
                         delta = insertion_delta(route, point, pos, instance)
                         new_len = lengths[r_idx] + delta
                         new_max = max(other_max, new_len)
+                        new_min = new_len if other_min is None else min(other_min, new_len)
+                        new_balance = new_max - new_min
                         new_total = total + delta
-                        choices.append(((new_max, new_total, delta), r_idx, pos, delta))
+                        choices.append(
+                            ((new_max, new_balance, new_total, delta), r_idx, pos, delta)
+                        )
                 choices.sort(key=_choice_score)
                 best = choices[0]
                 considered = choices[1 : min(self.k, len(choices))]
@@ -132,7 +138,7 @@ class RegretInsertion:
                     regret = 0
                     secondary = 0
                 # Maximize regret, but if tied choose lower best insertion score.
-                score = (regret, secondary, -best[0][0], -best[0][1])
+                score = (regret, secondary, -best[0][0], -best[0][1], -best[0][2])
                 if best_regret_score is None or _regret_score_is_better(
                     score, best_regret_score
                 ):
@@ -148,7 +154,7 @@ class RegretInsertion:
 
 @dataclass(frozen=True)
 class BalancedInsertion:
-    """Weighted repair emphasizing min-max first, insertion cost second."""
+    """Repair emphasizing max route first, balance second, insertion cost third."""
 
     alpha: float = 0.85
     beta: float = 0.15
@@ -193,12 +199,19 @@ class BalancedInsertion:
         return solution
 
 
-def _max_route_length_except(lengths: list[Distance], skipped_route: int) -> Distance:
-    best = 0.0
+def _route_length_extremes_except(
+    lengths: list[Distance], skipped_route: int
+) -> tuple[Distance, Distance | None]:
+    best_max = 0.0
+    best_min = None
     for route_index, length in enumerate(lengths):
-        if route_index != skipped_route and length > best:
-            best = length
-    return best
+        if route_index == skipped_route:
+            continue
+        if length > best_max:
+            best_max = length
+        if best_min is None or length < best_min:
+            best_min = length
+    return best_max, best_min
 
 
 def _activate_zero_length_routes(
@@ -224,12 +237,19 @@ def _activate_zero_length_routes(
             continue
 
         best_choice = None
+        lengths = solution.route_lengths(instance)
+        total = sum(lengths)
+        other_max, other_min = _route_length_extremes_except(lengths, route_index)
         for point in unassigned:
             for pos in range(1, len(route) + 1):
                 delta = insertion_delta(route, point, pos, instance)
                 new_length = old_length + delta
+                new_max = max(other_max, new_length)
+                new_min = new_length if other_min is None else min(other_min, new_length)
+                new_balance = new_max - new_min
+                new_total = total + delta
                 active_rank = 0 if new_length > 0.0 else 1
-                score = (active_rank, new_length if new_length > 0.0 else -new_length, delta)
+                score = (active_rank, new_max, new_balance, new_total, delta)
                 if best_choice is None or score < best_choice[0]:
                     best_choice = (score, point, pos)
 
@@ -244,21 +264,11 @@ def _choice_score(choice):
 
 
 def _insertion_score_is_better(candidate_score, best_score) -> bool:
-    if candidate_score[0] != best_score[0]:
-        return candidate_score[0] < best_score[0]
-    if candidate_score[1] != best_score[1]:
-        return candidate_score[1] < best_score[1]
-    return candidate_score[2] < best_score[2]
+    return candidate_score < best_score
 
 
 def _regret_score_is_better(candidate_score, best_score) -> bool:
-    if candidate_score[0] != best_score[0]:
-        return candidate_score[0] > best_score[0]
-    if candidate_score[1] != best_score[1]:
-        return candidate_score[1] > best_score[1]
-    if candidate_score[2] != best_score[2]:
-        return candidate_score[2] > best_score[2]
-    return candidate_score[3] > best_score[3]
+    return candidate_score > best_score
 
 
 def default_repair_operators() -> list:

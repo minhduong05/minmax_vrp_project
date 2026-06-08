@@ -59,7 +59,7 @@ Dinh nghia du lieu loi cua bai toan:
 
 - `Distance = float`: khoang cach duoc xu ly bang so thuc.
 - `Instance`: gom `n`, `k`, va ma tran distance kich thuoc `(n + 1) x (n + 1)`.
-- `Evaluation`: bo muc tieu `(max_route_length, total_distance, balance)`.
+- `Evaluation`: bo muc tieu `(max_route_length, balance, total_distance)`.
 - `Solution`: danh sach routes, kiem tra feasible, tinh route length, tinh objective.
 - `better()`: so sanh 2 solution theo objective lexicographic Min-Max.
 
@@ -148,7 +148,7 @@ Cac destroy operator, tuc la chon mot tap diem de remove khoi solution hien tai.
 
 ### `alns/repair.py`
 
-Cac repair operator, tuc la chen lai cac diem da remove vao route. Muc tieu la lam giam max route truoc, sau do den total distance.
+Cac repair operator, tuc la chen lai cac diem da remove vao route. Muc tieu la lam giam max route truoc, sau do den balance, roi den total distance.
 
 ### `alns/operators_utils.py`
 
@@ -191,7 +191,7 @@ Core Tabu Search:
 - tao initial solution bang greedy balanced insertion;
 - sinh candidate tu route dai nhat bang relocate, swap, reverse;
 - dung tabu list de tranh lap lai move;
-- objective la `(max_route, total_distance, balance)`;
+- objective la `(max_route, balance, total_distance)`;
 - tinh route theo bai toan mo, khong cong canh quay ve depot;
 - doc input phu bang `float` neu chay standalone.
 

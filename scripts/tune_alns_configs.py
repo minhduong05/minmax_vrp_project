@@ -14,10 +14,16 @@ import argparse
 import csv
 import json
 import statistics
+import sys
 from collections import defaultdict
+from concurrent.futures import ProcessPoolExecutor
 from datetime import datetime
 from pathlib import Path
 from typing import Iterable
+
+ROOT = Path(__file__).resolve().parents[1]
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
 
 from parser import load_instance
 from minmax_vrp.algorithms.alns.solver import ALNSConfig, ALNSSolver
@@ -130,6 +136,12 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--time-limit", type=float, default=3.0)
     parser.add_argument("--top-k", type=int, default=2)
     parser.add_argument(
+        "--workers",
+        type=int,
+        default=1,
+        help="Number of parallel worker processes for independent instance/seed runs.",
+    )
+    parser.add_argument(
         "--output-dir",
         default="output/config_tuning",
         help="Directory for CSV and JSON outputs.",
@@ -193,6 +205,50 @@ def load_instances(paths: Iterable[str]):
     return instances
 
 
+def run_candidate_task(task: dict[str, object]) -> dict[str, object]:
+    instance_path = Path(str(task["instance"]))
+    instance = load_instance(instance_path)
+    seed = int(task["seed"])
+    time_limit = float(task["time_limit"])
+    destroy = task["destroy"]
+    sa = task["sa"]
+    reward = task["reward"]
+    assert isinstance(destroy, dict)
+    assert isinstance(sa, dict)
+    assert isinstance(reward, dict)
+    config = merged_config(
+        time_limit=time_limit,
+        seed=seed,
+        destroy=destroy,
+        sa=sa,
+        reward=reward,
+    )
+    result = ALNSSolver(config).solve(instance)
+    objective = result.best.evaluate(instance)
+    return {
+        "timestamp": task["timestamp"],
+        "stage": task["stage"],
+        "config_name": task["config_name"],
+        "destroy_name": task["destroy_name"],
+        "sa_name": task["sa_name"],
+        "reward_name": task["reward_name"],
+        "instance": instance_path.as_posix(),
+        "n": instance.n,
+        "k": instance.k,
+        "seed": seed,
+        "time_limit": time_limit,
+        "config_json": config_json(config),
+        "feasible": result.best.is_feasible(instance),
+        "max_route": objective.max_route_length,
+        "total_distance": objective.total_distance,
+        "balance": objective.balance,
+        "runtime": result.runtime,
+        "iterations": result.iterations,
+        "destroy_weights": json.dumps(result.destroy_weights, sort_keys=True),
+        "repair_weights": json.dumps(result.repair_weights, sort_keys=True),
+    }
+
+
 def read_instance_file(path: str) -> list[str]:
     instance_paths = []
     for raw_line in Path(path).read_text(encoding="utf-8").splitlines():
@@ -217,20 +273,12 @@ def run_candidate(
     seeds: list[int],
     time_limit: float,
     timestamp: str,
+    workers: int = 1,
 ) -> list[dict[str, object]]:
-    rows = []
+    tasks = []
     for instance_path, instance in instances:
         for seed in seeds:
-            config = merged_config(
-                time_limit=time_limit,
-                seed=seed,
-                destroy=destroy,
-                sa=sa,
-                reward=reward,
-            )
-            result = ALNSSolver(config).solve(instance)
-            objective = result.best.evaluate(instance)
-            rows.append(
+            tasks.append(
                 {
                     "timestamp": timestamp,
                     "stage": stage,
@@ -239,22 +287,19 @@ def run_candidate(
                     "sa_name": sa_name,
                     "reward_name": reward_name,
                     "instance": instance_path.as_posix(),
-                    "n": instance.n,
-                    "k": instance.k,
                     "seed": seed,
                     "time_limit": time_limit,
-                    "config_json": config_json(config),
-                    "feasible": result.best.is_feasible(instance),
-                    "max_route": objective.max_route_length,
-                    "total_distance": objective.total_distance,
-                    "balance": objective.balance,
-                    "runtime": result.runtime,
-                    "iterations": result.iterations,
-                    "destroy_weights": json.dumps(result.destroy_weights, sort_keys=True),
-                    "repair_weights": json.dumps(result.repair_weights, sort_keys=True),
+                    "destroy": destroy,
+                    "sa": sa,
+                    "reward": reward,
                 }
             )
-    return rows
+    if workers <= 1 or len(tasks) <= 1:
+        return [run_candidate_task(task) for task in tasks]
+
+    worker_count = min(workers, len(tasks))
+    with ProcessPoolExecutor(max_workers=worker_count) as executor:
+        return list(executor.map(run_candidate_task, tasks))
 
 
 def baseline_lookup(baseline_rows: list[dict[str, object]]) -> dict[tuple[str, int], dict[str, float]]:
@@ -328,6 +373,7 @@ def aggregate(rows: list[dict[str, object]], key_field: str) -> list[dict[str, o
         key=lambda row: (
             row["mean_relative_max_route"],
             row["mean_max_route"],
+            row["mean_balance"],
             row["mean_total_distance"],
         )
     )
@@ -359,6 +405,7 @@ def print_summary(title: str, summaries: list[dict[str, object]], top_k: int) ->
             f"{rank}. {row['group_key']}: "
             f"mean_relative={float(row['mean_relative_max_route']):.5f}, "
             f"improvement={float(row['mean_max_route_improvement_pct']):.3f}%, "
+            f"mean_balance={float(row['mean_balance']):.3f}, "
             f"mean_total={float(row['mean_total_distance']):.3f}, "
             f"runs={row['runs']}"
         )
@@ -386,6 +433,7 @@ def selection_rows(
                     "median_max_route_improvement_pct"
                 ],
                 "mean_max_route": row["mean_max_route"],
+                "mean_balance": row["mean_balance"],
                 "mean_total_distance": row["mean_total_distance"],
                 "stage": row["stage"],
                 "note": note,
@@ -396,6 +444,8 @@ def selection_rows(
 
 def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
+    if args.workers < 1:
+        raise ValueError("--workers must be at least 1")
     seeds = [int(seed.strip()) for seed in args.seeds.split(",") if seed.strip()]
     if args.instance_file:
         instance_paths = read_instance_file(args.instance_file)
@@ -410,7 +460,10 @@ def main(argv: list[str] | None = None) -> int:
     selected_rows: list[dict[str, object]] = []
     reward_rows: list[dict[str, object]] = []
 
-    print(f"Loaded {len(instances)} instance(s), seeds={seeds}, time_limit={args.time_limit}s")
+    print(
+        f"Loaded {len(instances)} instance(s), seeds={seeds}, "
+        f"time_limit={args.time_limit}s, workers={args.workers}"
+    )
 
     baseline_rows = run_candidate(
         stage="baseline",
@@ -425,6 +478,7 @@ def main(argv: list[str] | None = None) -> int:
         seeds=seeds,
         time_limit=args.time_limit,
         timestamp=timestamp,
+        workers=args.workers,
     )
     baselines = baseline_lookup(baseline_rows)
     add_relative_metrics(baseline_rows, baselines)
@@ -456,6 +510,7 @@ def main(argv: list[str] | None = None) -> int:
                     seeds=seeds,
                     time_limit=args.time_limit,
                     timestamp=timestamp,
+                    workers=args.workers,
                 )
             )
         add_relative_metrics(destroy_rows, baselines)
@@ -493,6 +548,7 @@ def main(argv: list[str] | None = None) -> int:
                         seeds=seeds,
                         time_limit=args.time_limit,
                         timestamp=timestamp,
+                        workers=args.workers,
                     )
                 )
         add_relative_metrics(sa_rows, baselines)
@@ -530,6 +586,7 @@ def main(argv: list[str] | None = None) -> int:
                             seeds=seeds,
                             time_limit=args.time_limit,
                             timestamp=timestamp,
+                            workers=args.workers,
                         )
                     )
         add_relative_metrics(reward_rows, baselines)
@@ -571,6 +628,7 @@ def main(argv: list[str] | None = None) -> int:
                             seeds=seeds,
                             time_limit=args.time_limit,
                             timestamp=timestamp,
+                            workers=args.workers,
                         )
                     )
         add_relative_metrics(final_rows, baselines)
@@ -618,6 +676,7 @@ def main(argv: list[str] | None = None) -> int:
                 "seeds": seeds,
                 "time_limit": args.time_limit,
                 "top_k": args.top_k,
+                "workers": args.workers,
                 "destroy_configs": DESTROY_CONFIGS,
                 "sa_configs": SA_CONFIGS,
                 "reward_configs": REWARD_CONFIGS,
@@ -632,6 +691,7 @@ def main(argv: list[str] | None = None) -> int:
                     "win_rate": "share of runs where config max_route < baseline max_route",
                     "ranking_order": [
                         "lower mean_relative_max_route",
+                        "lower mean_balance",
                         "higher win_rate",
                         "higher mean_max_route_improvement_pct",
                         "higher median_max_route_improvement_pct",

@@ -18,11 +18,11 @@
   ],
   "seeds": [
     1,
-    2,
-    3
+    2
   ],
-  "time_limit": 10.0,
+  "time_limit": 5.0,
   "top_k": 2,
+  "workers": 12,
   "destroy_configs": [
     {
       "name": "small_destroy",
@@ -117,6 +117,7 @@
     "win_rate": "share of runs where config max_route < baseline max_route",
     "ranking_order": [
       "lower mean_relative_max_route",
+      "lower mean_balance",
       "higher win_rate",
       "higher mean_max_route_improvement_pct",
       "higher median_max_route_improvement_pct",
@@ -135,17 +136,17 @@
   ],
   "selected_sa": [
     {
-      "initial_temperature": 500.0,
-      "cooling_rate": 0.9995
-    },
-    {
       "initial_temperature": 300.0,
       "cooling_rate": 0.999
+    },
+    {
+      "initial_temperature": 1000.0,
+      "cooling_rate": 0.9999
     }
   ],
   "selected_reward": [
     {
-      "reward_global_best": 20.0,
+      "reward_global_best": 10.0,
       "reward_current_improved": 5.0,
       "reward_accepted": 1.0,
       "reward_rejected": 0.0
@@ -153,7 +154,7 @@
     {
       "reward_global_best": 10.0,
       "reward_current_improved": 5.0,
-      "reward_accepted": 1.0,
+      "reward_accepted": 2.0,
       "reward_rejected": 0.0
     }
   ],

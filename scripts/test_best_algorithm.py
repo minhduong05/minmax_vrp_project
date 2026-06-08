@@ -13,6 +13,7 @@ import statistics
 import sys
 import time
 from collections import defaultdict
+from concurrent.futures import ProcessPoolExecutor
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
@@ -37,14 +38,14 @@ BEST_ALNS_CONFIG = {
     "q_max_ratio": 0.10,
     "initial_temperature": 300.0,
     "cooling_rate": 0.999,
-    "reward_global_best": 20.0,
+    "reward_global_best": 10.0,
     "reward_current_improved": 5.0,
-    "reward_accepted": 1.0,
+    "reward_accepted": 2.0,
     "reward_rejected": 0.0,
 }
 
 BEST_VNS_CONFIG = {
-    "max_shake_level": 10,
+    "max_shake_level": 7,
     "candidate_limit": 24,
 }
 
@@ -123,6 +124,12 @@ def build_parser() -> argparse.ArgumentParser:
         "--stamp",
         help="Optional fixed output stamp. By default a timestamp is generated.",
     )
+    parser.add_argument(
+        "--workers",
+        type=int,
+        default=1,
+        help="Number of parallel worker processes for independent runs.",
+    )
     return parser
 
 
@@ -165,9 +172,9 @@ def data_seed_from_path(path: str) -> str:
 
 def config_name(algorithm: str) -> str:
     if algorithm == "alns":
-        return "small_destroy__strict__aggressive_best"
+        return "small_destroy__strict__exploration_friendly"
     if algorithm == "vns":
-        return "shake10__cand24"
+        return "shake7__cand24"
     if algorithm == "tabu_search":
         return "tenure15_cand100"
     raise ValueError(algorithm)
@@ -241,6 +248,96 @@ def solve_once(algorithm: str, instance: Instance, time_limit: float, seed: int)
     raise ValueError(algorithm)
 
 
+def run_task(task: dict[str, object]) -> dict[str, object]:
+    algorithm = str(task["algorithm"])
+    raw_path = str(task["raw_path"])
+    k = task["k"]
+    seed = int(task["seed"])
+    time_limit = float(task["time_limit"])
+    timestamp = str(task["timestamp"])
+
+    instance = load_instance(ROOT / raw_path, k=int(k) if k is not None else None)
+    solution, runtime, iterations = solve_once(algorithm, instance, time_limit, seed)
+    feasible = solution.is_feasible(instance)
+    objective = solution.evaluate(instance)
+    return {
+        "timestamp": timestamp,
+        "algorithm": algorithm,
+        "config_name": config_name(algorithm),
+        "config_json": config_json(algorithm),
+        "instance": raw_path,
+        "family": family_from_path(raw_path),
+        "n": instance.n,
+        "k": instance.k,
+        "data_seed": data_seed_from_path(raw_path),
+        "solver_seed": seed,
+        "time_limit": time_limit,
+        "feasible": "yes" if feasible else "no",
+        "max_route": objective.max_route_length,
+        "total_distance": objective.total_distance,
+        "balance": objective.balance,
+        "runtime": runtime,
+        "iterations": iterations,
+    }
+
+
+def build_tasks(
+    *,
+    algorithm: str,
+    instance_specs: list[InstanceSpec],
+    seeds: list[int],
+    time_limits: list[float],
+    timestamp: str,
+) -> list[dict[str, object]]:
+    tasks = []
+    for spec in instance_specs:
+        for time_limit in time_limits:
+            for seed in seeds:
+                tasks.append(
+                    {
+                        "algorithm": algorithm,
+                        "raw_path": spec.path,
+                        "k": spec.k,
+                        "time_limit": time_limit,
+                        "seed": seed,
+                        "timestamp": timestamp,
+                    }
+                )
+    return tasks
+
+
+def print_task_progress(index: int, total: int, task: dict[str, object]) -> None:
+    print(
+        f"[{index}/{total}] {task['algorithm']} "
+        f"{Path(str(task['raw_path'])).name} "
+        f"t={float(task['time_limit']):g}s seed={task['seed']}",
+        flush=True,
+    )
+
+
+def run_tasks(tasks: list[dict[str, object]], workers: int) -> list[dict[str, object]]:
+    if workers <= 1 or len(tasks) <= 1:
+        rows = []
+        for index, task in enumerate(tasks, start=1):
+            print_task_progress(index, len(tasks), task)
+            rows.append(run_task(task))
+        return rows
+
+    worker_count = min(workers, len(tasks))
+    print(f"Running {len(tasks)} runs with {worker_count} worker processes.", flush=True)
+    rows = []
+    with ProcessPoolExecutor(max_workers=worker_count) as executor:
+        future_to_task = {
+            executor.submit(run_task, task): (index, task)
+            for index, task in enumerate(tasks, start=1)
+        }
+        for future in future_to_task:
+            index, task = future_to_task[future]
+            print_task_progress(index, len(tasks), task)
+            rows.append(future.result())
+    return rows
+
+
 def row_group_key(row: dict[str, object], group_type: str) -> str:
     if group_type == "overall":
         return "all"
@@ -299,6 +396,8 @@ def write_csv(path: Path, rows: list[dict[str, object]], header: list[str]) -> N
 
 def main() -> int:
     args = build_parser().parse_args()
+    if args.workers < 1:
+        raise ValueError("--workers must be at least 1")
     seeds = [int(seed.strip()) for seed in args.seeds.split(",") if seed.strip()]
     if args.time_limits:
         time_limits = [
@@ -314,49 +413,14 @@ def main() -> int:
     timestamp = datetime.now().isoformat(timespec="seconds")
     stamp = args.stamp or datetime.now().strftime("%Y%m%d_%H%M%S")
 
-    rows = []
-    total_runs = len(instance_specs) * len(seeds) * len(time_limits)
-    run_index = 0
-    for spec in instance_specs:
-        raw_path = spec.path
-        instance = load_instance(ROOT / raw_path, k=spec.k)
-        for time_limit in time_limits:
-            for seed in seeds:
-                run_index += 1
-                print(
-                    f"[{run_index}/{total_runs}] {args.algorithm} "
-                    f"{Path(raw_path).name} t={time_limit:g}s seed={seed}",
-                    flush=True,
-                )
-                solution, runtime, iterations = solve_once(
-                    args.algorithm,
-                    instance,
-                    time_limit,
-                    seed,
-                )
-                feasible = solution.is_feasible(instance)
-                objective = solution.evaluate(instance)
-                rows.append(
-                    {
-                        "timestamp": timestamp,
-                        "algorithm": args.algorithm,
-                        "config_name": config_name(args.algorithm),
-                        "config_json": config_json(args.algorithm),
-                        "instance": raw_path,
-                        "family": family_from_path(raw_path),
-                        "n": instance.n,
-                        "k": instance.k,
-                        "data_seed": data_seed_from_path(raw_path),
-                        "solver_seed": seed,
-                        "time_limit": time_limit,
-                        "feasible": "yes" if feasible else "no",
-                        "max_route": objective.max_route_length,
-                        "total_distance": objective.total_distance,
-                        "balance": objective.balance,
-                        "runtime": runtime,
-                        "iterations": iterations,
-                    }
-                )
+    tasks = build_tasks(
+        algorithm=args.algorithm,
+        instance_specs=instance_specs,
+        seeds=seeds,
+        time_limits=time_limits,
+        timestamp=timestamp,
+    )
+    rows = run_tasks(tasks, args.workers)
 
     output_dir = ROOT / args.output_dir
     prefix = f"{stamp}_{args.algorithm}_best_test"

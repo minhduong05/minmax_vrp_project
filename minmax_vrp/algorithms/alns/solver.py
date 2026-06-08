@@ -21,11 +21,36 @@ class ALNSConfig:
     cooling_rate: float = 0.999
     reaction: float = 0.20
     segment_length: int = 50
+    require_positive_route_lengths: bool = True
 
-    reward_global_best: float = 20.0
+    reward_global_best: float = 10.0
     reward_current_improved: float = 5.0
-    reward_accepted: float = 1.0
+    reward_accepted: float = 2.0
     reward_rejected: float = 0.0
+
+    def __post_init__(self) -> None:
+        if self.time_limit < 0.0:
+            raise ValueError("time_limit must be non-negative")
+        if self.q_min_ratio < 0.0:
+            raise ValueError("q_min_ratio must be non-negative")
+        if self.q_max_ratio < self.q_min_ratio:
+            raise ValueError("q_max_ratio must be greater than or equal to q_min_ratio")
+        if self.initial_temperature < 0.0:
+            raise ValueError("initial_temperature must be non-negative")
+        if not 0.0 < self.cooling_rate <= 1.0:
+            raise ValueError("cooling_rate must be in (0, 1]")
+        if not 0.0 <= self.reaction <= 1.0:
+            raise ValueError("reaction must be in [0, 1]")
+        if self.segment_length <= 0:
+            raise ValueError("segment_length must be positive")
+        rewards = [
+            self.reward_global_best,
+            self.reward_current_improved,
+            self.reward_accepted,
+            self.reward_rejected,
+        ]
+        if any(reward < 0.0 for reward in rewards):
+            raise ValueError("ALNS rewards must be non-negative")
 
 
 @dataclass
@@ -68,7 +93,9 @@ class ALNSSolver:
             seed=self.config.seed,
         )
         current.assert_feasible(instance)
-        if not has_positive_route_lengths(current, instance):
+        if self.config.require_positive_route_lengths and not has_positive_route_lengths(
+            current, instance
+        ):
             raise ValueError(
                 "ALNS requires every vehicle to have a positive-length route; "
                 f"got n={instance.n}, k={instance.k}"
@@ -91,9 +118,7 @@ class ALNSSolver:
                 continue
             candidate = repair_op(partial, removed, instance, self.rng)
 
-            if not candidate.is_feasible(instance) or not has_positive_route_lengths(
-                candidate, instance
-            ):
+            if not self._candidate_is_valid(candidate, instance):
                 reward = self.config.reward_rejected
             else:
                 old_current = current
@@ -130,3 +155,10 @@ class ALNSSolver:
             destroy_weights=self.destroy_selector.weights_snapshot(),
             repair_weights=self.repair_selector.weights_snapshot(),
         )
+
+    def _candidate_is_valid(self, candidate: Solution, instance: Instance) -> bool:
+        if not candidate.is_feasible(instance):
+            return False
+        if self.config.require_positive_route_lengths:
+            return has_positive_route_lengths(candidate, instance)
+        return True

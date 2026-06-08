@@ -82,8 +82,51 @@ def read_rows(paths: list[Path]) -> list[dict[str, str]]:
     rows = []
     for path in paths:
         with path.open(newline="", encoding="utf-8") as file:
-            rows.extend(csv.DictReader(file))
+            for line_number, row in enumerate(csv.DictReader(file), start=2):
+                row["_source_file"] = str(path.relative_to(ROOT))
+                row["_source_line"] = str(line_number)
+                rows.append(row)
     return rows
+
+
+def is_valid_row(row: dict[str, str]) -> bool:
+    required = [
+        "time_limit",
+        "instance",
+        "algorithm",
+        "max_route",
+        "total_distance",
+        "balance",
+        "runtime",
+        "iterations",
+        "n",
+        "k",
+    ]
+    if any(row.get(key) in (None, "") for key in required):
+        return False
+    try:
+        float(row["time_limit"])
+        float(row["max_route"])
+        float(row["total_distance"])
+        float(row["balance"])
+        float(row["runtime"])
+        float(row["iterations"])
+        int(float(row["n"]))
+        int(float(row["k"]))
+    except (TypeError, ValueError):
+        return False
+    return True
+
+
+def filter_valid_rows(rows: list[dict[str, str]]) -> tuple[list[dict[str, str]], list[dict[str, str]]]:
+    valid_rows = []
+    invalid_rows = []
+    for row in rows:
+        if is_valid_row(row):
+            valid_rows.append(row)
+        else:
+            invalid_rows.append(row)
+    return valid_rows, invalid_rows
 
 
 def mean(values):
@@ -222,6 +265,7 @@ def main() -> int:
     timestamp = datetime.now().isoformat(timespec="seconds")
     stamp = args.stamp or datetime.now().strftime("%Y%m%d_%H%M%S")
     rows = read_rows(paths)
+    rows, invalid_rows = filter_valid_rows(rows)
     detail_rows = aggregate_by_instance(rows, timestamp)
     summary_rows = summarize(detail_rows, timestamp)
 
@@ -232,6 +276,13 @@ def main() -> int:
     write_csv(summary_path, summary_rows, SUMMARY_HEADER)
 
     print(f"Read {len(paths)} run file(s).")
+    print(f"Used {len(rows)} valid row(s); skipped {len(invalid_rows)} malformed row(s).")
+    if invalid_rows:
+        print("Skipped malformed rows:")
+        for row in invalid_rows[:10]:
+            print(f"- {row.get('_source_file')}:{row.get('_source_line')}")
+        if len(invalid_rows) > 10:
+            print(f"- ... {len(invalid_rows) - 10} more")
     print(f"Wrote detail: {detail_path}")
     print(f"Wrote summary: {summary_path}")
     print("\nRanking by time_limit and mean_max_route:")

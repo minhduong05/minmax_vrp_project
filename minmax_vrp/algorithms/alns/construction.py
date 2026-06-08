@@ -55,15 +55,22 @@ def build_greedy_balanced(
         for r_idx, route in enumerate(routes):
             old_length = lengths[r_idx]
             other_max = 0.0
+            other_min = None
             for other_route, other_length in enumerate(lengths):
-                if other_route != r_idx and other_length > other_max:
+                if other_route == r_idx:
+                    continue
+                if other_length > other_max:
                     other_max = other_length
+                if other_min is None or other_length < other_min:
+                    other_min = other_length
             for pos in range(1, len(route) + 1):
                 delta = insertion_delta(route, point, pos, instance)
                 new_length = old_length + delta
                 new_max = max(other_max, new_length)
+                new_min = new_length if other_min is None else min(other_min, new_length)
+                new_balance = new_max - new_min
                 new_total = running_total + delta
-                score = (new_max, new_total, new_length)
+                score = (new_max, new_balance, new_total, new_length)
                 if best_choice is None or _insertion_score_is_better(score, best_choice[0]):
                     best_choice = (score, r_idx, pos, delta)
         assert best_choice is not None
@@ -77,11 +84,7 @@ def build_greedy_balanced(
 
 
 def _insertion_score_is_better(
-    candidate_score: tuple[Distance, Distance, Distance],
-    best_score: tuple[Distance, Distance, Distance],
+    candidate_score: tuple[Distance, Distance, Distance, Distance],
+    best_score: tuple[Distance, Distance, Distance, Distance],
 ) -> bool:
-    if candidate_score[0] != best_score[0]:
-        return candidate_score[0] < best_score[0]
-    if candidate_score[1] != best_score[1]:
-        return candidate_score[1] < best_score[1]
-    return candidate_score[2] < best_score[2]
+    return candidate_score < best_score

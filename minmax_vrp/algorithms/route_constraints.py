@@ -96,4 +96,4 @@ def _activation_score(
     max_length = max(lengths)
     total = sum(lengths)
     balance = max_length - min(lengths)
-    return (max_length, total, balance)
+    return (max_length, balance, total)
