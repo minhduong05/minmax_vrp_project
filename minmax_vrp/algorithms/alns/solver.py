@@ -1,14 +1,27 @@
+from __future__ import annotations
+
 import random
 import time
 from dataclasses import dataclass
 
-from .acceptance import SimulatedAnnealingAcceptance
-from .adaptive import AdaptiveSelector
-from .construction import build_greedy_balanced
-from .destroy import default_destroy_operators
+from ...models import Instance, Objective, Solution
 from ..route_constraints import has_positive_route_lengths
-from ...models import Distance, Instance, Solution, better
-from .repair import default_repair_operators
+from .constructive.initial_solution import balanced_nearest_seed
+from .core.instance import Instance as ALNSInstance
+from .core.solution import Solution as ALNSSolution
+from .metaheuristics.acceptance import SimulatedAnnealing
+from .metaheuristics.alns import ALNS
+from .metaheuristics.stopping import StopCriteria
+from .operators.insertion import BalancedInsertion, GreedyMinMaxInsertion, RegretInsertion
+from .operators.local_search import improve_by_relocate
+from .operators.removal import (
+    DestroyConfig,
+    LongestRouteRemoval,
+    RandomRemoval,
+    RelatedRemoval,
+    RouteRemoval,
+    WorstRemoval,
+)
 
 
 @dataclass
@@ -22,6 +35,8 @@ class ALNSConfig:
     reaction: float = 0.20
     segment_length: int = 50
     require_positive_route_lengths: bool = True
+    use_local_search: bool = False
+    max_iterations: int = 1_000_000
 
     reward_global_best: float = 10.0
     reward_current_improved: float = 5.0
@@ -43,6 +58,8 @@ class ALNSConfig:
             raise ValueError("reaction must be in [0, 1]")
         if self.segment_length <= 0:
             raise ValueError("segment_length must be positive")
+        if self.max_iterations <= 0:
+            raise ValueError("max_iterations must be positive")
         rewards = [
             self.reward_global_best,
             self.reward_current_improved,
@@ -58,107 +75,141 @@ class ALNSResult:
     best: Solution
     iterations: int
     runtime: float
-    best_objective: tuple[Distance, Distance, Distance]
+    best_objective: Objective
     destroy_weights: dict[str, float]
     repair_weights: dict[str, float]
 
 
 class ALNSSolver:
-    """Adaptive Large Neighborhood Search for Min-Max Vehicle Routing."""
+    """Adapter around the merged standalone ALNS implementation."""
 
-    def __init__(
-        self,
-        config=None,
-        destroy_operators=None,
-        repair_operators=None,
-    ) -> None:
+    def __init__(self, config: ALNSConfig | None = None) -> None:
         self.config = config or ALNSConfig()
-        self.rng = random.Random(self.config.seed)
-        self.destroy_selector = AdaptiveSelector(
-            destroy_operators or default_destroy_operators(), reaction=self.config.reaction
-        )
-        self.repair_selector = AdaptiveSelector(
-            repair_operators or default_repair_operators(), reaction=self.config.reaction
-        )
-        self.acceptance = SimulatedAnnealingAcceptance(
-            initial_temperature=self.config.initial_temperature,
-            cooling_rate=self.config.cooling_rate,
-        )
 
-    def solve(self, instance: Instance, initial=None) -> ALNSResult:
+    def solve(self, instance: Instance, initial: Solution | None = None) -> ALNSResult:
         start = time.perf_counter()
-        deadline = start + self.config.time_limit
-        current = initial or build_greedy_balanced(
-            instance,
-            seed=self.config.seed,
-        )
-        current.assert_feasible(instance)
-        if self.config.require_positive_route_lengths and not has_positive_route_lengths(
-            current, instance
-        ):
+        if self.config.require_positive_route_lengths and instance.n < instance.k:
             raise ValueError(
                 "ALNS requires every vehicle to have a positive-length route; "
                 f"got n={instance.n}, k={instance.k}"
             )
-        best_sol = current.copy()
-        self.acceptance.reset(best_sol.evaluate(instance).max_route_length)
 
-        q_min = max(1, min(instance.n, int(self.config.q_min_ratio * instance.n)))
-        q_max = max(q_min, min(instance.n, int(self.config.q_max_ratio * instance.n)))
-        iterations = 0
+        core_instance = _to_alns_instance(instance)
+        rng = random.Random(self.config.seed)
+        current = _to_alns_solution(core_instance, initial) if initial else balanced_nearest_seed(core_instance, rng)
+        current.validate(strict_use_all_routes=self.config.require_positive_route_lengths)
 
-        while time.perf_counter() < deadline:
-            iterations += 1
-            destroy_op = self.destroy_selector.choose(self.rng)
-            repair_op = self.repair_selector.choose(self.rng)
-            q = self.rng.randint(q_min, q_max) if instance.n > 0 else 0
+        alns = self._build_alns(core_instance)
+        stop = StopCriteria(
+            max_iterations=self.config.max_iterations,
+            max_seconds=self.config.time_limit,
+        )
+        acceptance = SimulatedAnnealing(
+            start_temperature=self.config.initial_temperature,
+            cooling_rate=self.config.cooling_rate,
+        )
+        result = alns.iterate(current, stop, acceptance, collect_history=False)
+        best = _to_project_solution(result.best)
 
-            partial, removed = destroy_op(current, instance, q, self.rng)
-            if not removed:
-                continue
-            candidate = repair_op(partial, removed, instance, self.rng)
+        if self.config.require_positive_route_lengths and not has_positive_route_lengths(best, instance):
+            best = _to_project_solution(_ensure_all_routes_used(result.best))
+        if self.config.require_positive_route_lengths and not has_positive_route_lengths(best, instance):
+            raise ValueError(
+                "ALNS requires every vehicle to have a positive-length route; "
+                f"got n={instance.n}, k={instance.k}"
+            )
+        best.assert_feasible(instance)
 
-            if not self._candidate_is_valid(candidate, instance):
-                reward = self.config.reward_rejected
-            else:
-                old_current = current
-                accepted = self.acceptance.accept(current, candidate, instance, self.rng)
-                if accepted:
-                    current = candidate
-
-                if better(candidate, best_sol, instance):
-                    best_sol = candidate.copy()
-                    reward = self.config.reward_global_best
-                elif better(candidate, old_current, instance):
-                    reward = self.config.reward_current_improved
-                elif accepted:
-                    reward = self.config.reward_accepted
-                else:
-                    reward = self.config.reward_rejected
-
-            self.destroy_selector.record(destroy_op, reward)
-            self.repair_selector.record(repair_op, reward)
-
-            if iterations % self.config.segment_length == 0:
-                self.destroy_selector.update_weights()
-                self.repair_selector.update_weights()
-
-        # Flush last segment scores.
-        self.destroy_selector.update_weights()
-        self.repair_selector.update_weights()
         runtime = time.perf_counter() - start
         return ALNSResult(
-            best=best_sol,
-            iterations=iterations,
+            best=best,
+            iterations=result.iterations,
             runtime=runtime,
-            best_objective=best_sol.evaluate(instance).as_tuple(),
-            destroy_weights=self.destroy_selector.weights_snapshot(),
-            repair_weights=self.repair_selector.weights_snapshot(),
+            best_objective=best.evaluate(instance).as_tuple(),
+            destroy_weights=dict(result.destroy_weights),
+            repair_weights=dict(result.repair_weights),
         )
 
-    def _candidate_is_valid(self, candidate: Solution, instance: Instance) -> bool:
-        if not candidate.is_feasible(instance):
-            return False
-        if self.config.require_positive_route_lengths:
-            return has_positive_route_lengths(candidate, instance)
-        return True
+    def _build_alns(self, instance: ALNSInstance) -> ALNS:
+        min_remove = max(1, min(instance.n, int(self.config.q_min_ratio * instance.n)))
+        destroy_config = DestroyConfig(
+            min_remove=min_remove,
+            max_remove_fraction=self.config.q_max_ratio,
+        )
+        destroys = [
+            RandomRemoval(destroy_config),
+            WorstRemoval(destroy_config, focus_longest=True),
+            LongestRouteRemoval(destroy_config),
+            RelatedRemoval(destroy_config),
+            RouteRemoval(destroy_config, partial=True),
+        ]
+        repairs = [
+            GreedyMinMaxInsertion(),
+            RegretInsertion(k=2),
+            BalancedInsertion(),
+        ]
+
+        def local(solution: ALNSSolution, rng: random.Random) -> ALNSSolution:
+            candidate = solution
+            if self.config.use_local_search:
+                candidate = improve_by_relocate(candidate, max_checks=1500, rng=rng)
+            if self.config.require_positive_route_lengths:
+                candidate = _ensure_all_routes_used(candidate)
+            return candidate
+
+        return ALNS(
+            destroys,
+            repairs,
+            rng=random.Random(self.config.seed),
+            reaction=self.config.reaction,
+            segment_length=self.config.segment_length,
+            scores=(
+                self.config.reward_global_best,
+                self.config.reward_current_improved,
+                self.config.reward_accepted,
+                self.config.reward_rejected,
+            ),
+            local_search=local,
+        )
+
+
+def _to_alns_instance(instance: Instance) -> ALNSInstance:
+    return ALNSInstance(
+        n=instance.n,
+        k=instance.k,
+        distance=tuple(tuple(float(value) for value in row) for row in instance.distance),
+        return_to_depot=False,
+    )
+
+
+def _to_alns_solution(instance: ALNSInstance, solution: Solution) -> ALNSSolution:
+    return ALNSSolution(instance, [route[:] for route in solution.routes])
+
+
+def _to_project_solution(solution: ALNSSolution) -> Solution:
+    return Solution([route[:] for route in solution.routes])
+
+
+def _ensure_all_routes_used(solution: ALNSSolution) -> ALNSSolution:
+    repaired = solution.copy()
+    empty_routes = [idx for idx, route in enumerate(repaired.routes) if len(route) <= 1]
+    for empty_idx in empty_routes:
+        donors = [idx for idx, route in enumerate(repaired.routes) if len(route) > 2]
+        if not donors:
+            break
+        best_move: tuple[tuple[tuple[float, ...], float], int, int] | None = None
+        for donor_idx in donors:
+            for pos in range(1, len(repaired.routes[donor_idx])):
+                customer = repaired.routes[donor_idx][pos]
+                trial = repaired.copy()
+                trial.remove_at(donor_idx, pos, add_to_unassigned=False)
+                trial.insert_customer(empty_idx, 1, customer)
+                item = (trial.objective(), donor_idx, pos)
+                if best_move is None or item < best_move:
+                    best_move = item
+        if best_move is None:
+            break
+        _, donor_idx, pos = best_move
+        customer = repaired.remove_at(donor_idx, pos, add_to_unassigned=False)
+        repaired.insert_customer(empty_idx, 1, customer)
+    return repaired

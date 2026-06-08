@@ -40,6 +40,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--q-max-ratio", type=float, default=0.10)
     parser.add_argument("--initial-temperature", type=float, default=300.0)
     parser.add_argument("--cooling-rate", type=float, default=0.999)
+    parser.add_argument("--segment-length", type=int, default=50)
     parser.add_argument("--reward-global-best", type=float, default=10.0)
     parser.add_argument("--reward-current-improved", type=float, default=5.0)
     parser.add_argument("--reward-accepted", type=float, default=2.0)
@@ -66,6 +67,7 @@ def main(argv: list[str] | None = None) -> int:
         q_max_ratio=args.q_max_ratio,
         initial_temperature=args.initial_temperature,
         cooling_rate=args.cooling_rate,
+        segment_length=args.segment_length,
         reward_global_best=args.reward_global_best,
         reward_current_improved=args.reward_current_improved,
         reward_accepted=args.reward_accepted,

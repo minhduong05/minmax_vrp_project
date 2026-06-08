@@ -25,12 +25,14 @@ minmax_vrp/
     |   |-- __init__.py
     |   |-- acceptance.py
     |   |-- adapter.py
-    |   |-- adaptive.py
-    |   |-- construction.py
-    |   |-- destroy.py
-    |   |-- operators_utils.py
-    |   |-- repair.py
-    |   `-- solver.py
+    |   |-- solver.py
+    |   |-- main.py
+    |   |-- constructive/
+    |   |-- core/
+    |   |-- experiments/
+    |   |-- io/
+    |   |-- metaheuristics/
+    |   `-- operators/
     |-- tabu_search/
     |   |-- __init__.py
     |   |-- solver.py
@@ -59,7 +61,7 @@ Dinh nghia du lieu loi cua bai toan:
 
 - `Distance = float`: khoang cach duoc xu ly bang so thuc.
 - `Instance`: gom `n`, `k`, va ma tran distance kich thuoc `(n + 1) x (n + 1)`.
-- `Evaluation`: bo muc tieu `(max_route_length, balance, total_distance)`.
+- `Evaluation`: thong ke nghiem va objective `((route_lengths sorted desc), total_distance)`.
 - `Solution`: danh sach routes, kiem tra feasible, tinh route length, tinh objective.
 - `better()`: so sanh 2 solution theo objective lexicographic Min-Max.
 
@@ -111,61 +113,61 @@ Noi dang ky cac thuat toan duoc phep chay:
 
 ## `algorithms/alns/`
 
-ALNS la Adaptive Large Neighborhood Search. Phan nay duoc tach thanh nhieu file nho vi thuat toan co nhieu thanh phan: construction, destroy, repair, acceptance va adaptive weights.
+ALNS la Adaptive Large Neighborhood Search. Phan nay dung code optimized tu package `minmax_vrp_alns`, gom core state co cache route length, constructive seed, destroy/repair operators, local search nhe, simulated annealing va adaptive roulette-wheel selection.
 
 ### `alns/__init__.py`
 
 Export:
 
 - `ALNSAlgorithm`: adapter theo contract chung.
-- `ALNSConfig`, `ALNSResult`, `ALNSSolver`: solver ALNS goc.
+- `ALNSConfig`, `ALNSResult`, `ALNSSolver`: wrapper tuong thich voi model chung cua project.
 
 ### `alns/adapter.py`
 
-Lop cau noi giua framework chung va ALNS goc.
+Lop cau noi giua framework chung va ALNS optimized.
 
 `ALNSAlgorithm` nhan `AlgorithmConfig`, map sang `ALNSConfig`, goi `ALNSSolver`, roi dong goi ket qua thanh `AlgorithmResult`.
 
 ### `alns/solver.py`
 
-Core ALNS:
+Wrapper tich hop ALNS optimized vao project:
 
-- tao initial solution bang greedy balanced;
-- lap destroy/repair den khi het time limit;
-- dung simulated annealing de chap nhan nghiem;
-- cap nhat trong so operator thich nghi.
+- convert `minmax_vrp.models.Instance/Solution` sang core state cua ALNS moi;
+- tao initial solution bang `balanced_nearest_seed`;
+- dung destroy/repair/local-search operators trong cac subpackage optimized;
+- convert best solution ve lai `minmax_vrp.models.Solution`.
 
-### `alns/construction.py`
+### `alns/core/`
 
-Tao solution ban dau:
+State rieng cua ALNS optimized:
 
-- `build_round_robin()`: chia diem vong tron don gian.
-- `build_greedy_balanced()`: chen diem theo huong can bang max route.
+- `Instance`: distance matrix dang tuple va tuy chon route mo/dong.
+- `Solution`: routes, route-length cache, unassigned customers, insert/remove delta va validate.
 
-### `alns/destroy.py`
+### `alns/constructive/`
 
-Cac destroy operator, tuc la chon mot tap diem de remove khoi solution hien tai. Vi du: random removal, worst-route removal, related removal.
+Tao solution ban dau bang farthest seeds va balanced nearest insertion.
 
-### `alns/repair.py`
+### `alns/operators/`
 
-Cac repair operator, tuc la chen lai cac diem da remove vao route. Muc tieu la lam giam max route truoc, sau do den balance, roi den total distance.
+Destroy, repair va local-search operators:
 
-### `alns/operators_utils.py`
+- removal: random, worst, longest-route, related, route removal.
+- insertion: greedy min-max, regret insertion, balanced insertion.
+- local search: relocate sampling nhe.
 
-Ham tien ich dung chung cho destroy/repair:
+### `alns/metaheuristics/`
 
-- tinh insertion delta;
-- tinh removal saving;
-- clone routes;
-- thu thap pickup points.
+Thanh phan dieu khien search:
 
-### `alns/adaptive.py`
+- `ALNS`: vong lap destroy/repair/accept/update.
+- `AdaptiveRouletteWheel`: chon va cap nhat trong so operator.
+- `SimulatedAnnealing`: acceptance.
+- `StopCriteria`: gioi han iteration, thoi gian va no-improve.
 
-Quan ly trong so operator ALNS. Operator nao tao nghiem tot hon se duoc tang trong so, operator kem se giam dan theo `reaction`.
+### `alns/io/`, `alns/experiments/`, `alns/main.py`
 
-### `alns/acceptance.py`
-
-Chien luoc chap nhan nghiem moi bang simulated annealing. Giup ALNS thoat local optimum thay vi chi nhan nghiem tot hon.
+Tien ich output, metrics va CLI standalone duoc giu lai tu package optimized. Trong project chinh, `run.py` van di qua `ALNSAlgorithm`.
 
 ## `algorithms/tabu_search/`
 

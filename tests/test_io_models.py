@@ -24,7 +24,7 @@ def test_read_instance_and_evaluate_open_routes_by_default(tmp_path):
     assert instance.k == 2
     assert solution.is_feasible(instance)
     assert solution.route_lengths(instance) == [6, 9]
-    assert solution.evaluate(instance).as_tuple() == (9, 3, 15)
+    assert solution.evaluate(instance).as_tuple() == ((9, 6), 15)
 
 
 def test_read_instance_preserves_real_distances(tmp_path):

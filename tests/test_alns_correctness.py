@@ -28,7 +28,7 @@ def test_acceptance_always_accepts_lexicographic_improvement():
     assert acceptance.accept(current, candidate, instance, random.Random(0))
 
 
-def test_better_prioritizes_balance_before_total_distance_after_max_route():
+def test_better_uses_sorted_route_lengths_before_total_distance():
     distance = [
         [0.0, 10.0, 5.0, 8.0, 4.0],
         [10.0, 0.0, 0.0, 0.0, 0.0],
@@ -42,9 +42,9 @@ def test_better_prioritizes_balance_before_total_distance_after_max_route():
 
     assert lower_total_worse_balance.is_feasible(instance)
     assert higher_total_better_balance.is_feasible(instance)
-    assert lower_total_worse_balance.evaluate(instance).as_tuple() == (10.0, 5.0, 15.0)
-    assert higher_total_better_balance.evaluate(instance).as_tuple() == (10.0, 2.0, 18.0)
-    assert better(higher_total_better_balance, lower_total_worse_balance, instance)
+    assert lower_total_worse_balance.evaluate(instance).as_tuple() == ((10.0, 5.0), 15.0)
+    assert higher_total_better_balance.evaluate(instance).as_tuple() == ((10.0, 8.0), 18.0)
+    assert better(lower_total_worse_balance, higher_total_better_balance, instance)
 
 
 def test_alns_requires_positive_route_lengths_by_default():
