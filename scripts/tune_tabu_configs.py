@@ -40,14 +40,18 @@ from minmax_vrp.algorithms.tabu_search.tabu_search import local_clear, tabu_sear
 
 
 # =========================== LUOI CONFIG ===========================
-# Cac config can thu nghiem (tenure x max_candidates).
+# Cac config can thu nghiem.
+# max_candidates da duoc chung minh KHONG tac dong (100/200/400 cho ket qua
+# y het) nen co dinh = 100 (re nhat). Chi tune tenure x num_target_routes.
 TENURE_VALUES = [5, 7, 10, 15]
-MAX_CANDIDATES_VALUES = [100, 200, 400]
+MAX_CANDIDATES_VALUES = [100]
+NUM_TARGET_ROUTES_VALUES = [5, 12, 20]
 
 # Baseline = config goc hardcode trong main() cua tabu_search.py.
 # Chay KHONG seed (deterministic) - dung lam moc so sanh.
 BASELINE_TENURE = 7
 BASELINE_CANDIDATES = 200
+BASELINE_NUM_TARGET = 12
 
 # Co bat hau toi uu 2-opt (local_clear) sau khi Tabu chay xong.
 USE_LOCAL_SEARCH = True
@@ -124,7 +128,7 @@ def resolve_instances(args) -> list[str]:
     return list(PRESET_INSTANCES[args.preset])
 
 
-def run_once(instance, tenure, max_candidates, time_limit, seed):
+def run_once(instance, tenure, max_candidates, time_limit, seed, num_target_routes):
     """Chay Tabu mot lan voi 1 config + 1 seed, tra ve dict metric.
 
     tabu_search nhan seed -> moi seed cho mot quy dao tim kiem khac nhau.
@@ -140,6 +144,7 @@ def run_once(instance, tenure, max_candidates, time_limit, seed):
         max_candidates=max_candidates,
         deadline=start + max(0.0, time_limit),
         seed=seed,
+        num_target_routes=num_target_routes,
     )
     if USE_LOCAL_SEARCH:
         routes = local_clear(routes, instance.distance)
@@ -178,7 +183,9 @@ def main() -> int:
     csv_path = output_dir / f"{stamp}_tabu_search_grid.csv"
     timestamp = datetime.now().isoformat(timespec="seconds")
 
-    configs = [(t, c) for t in TENURE_VALUES for c in MAX_CANDIDATES_VALUES]
+    configs = [(t, c, g) for t in TENURE_VALUES
+               for c in MAX_CANDIDATES_VALUES
+               for g in NUM_TARGET_ROUTES_VALUES]
     # baseline = config goc hardcode trong main(): tenure=7, cand=200, KHONG seed.
     baseline_tenure, baseline_cand = BASELINE_TENURE, BASELINE_CANDIDATES
 
@@ -186,18 +193,19 @@ def main() -> int:
     run_idx = 0
     rows = []
 
-    def record(inst_path, instance, tenure, max_candidates, seed, config_name, stage):
+    def record(inst_path, instance, tenure, max_candidates, num_target, seed, config_name, stage):
         """Chay 1 lan + ghi 1 dong vao rows. seed=None -> deterministic."""
         nonlocal run_idx
         run_idx += 1
         seed_label = "none" if seed is None else seed
         print(f"[{run_idx}/{total_runs}] {stage}:{config_name} seed={seed_label} ...",
               end=" ", flush=True)
-        m = run_once(instance, tenure, max_candidates, time_limit, seed)
+        m = run_once(instance, tenure, max_candidates, time_limit, seed, num_target)
         print(f"max_route={m['max_route']:.2f} runtime={m['runtime']:.2f}s "
               f"feasible={'yes' if m['feasible'] else 'NO'}")
         cfg_json = json.dumps(
             {"tenure": tenure, "max_candidates": max_candidates,
+             "num_target_routes": num_target,
              "use_local_search": USE_LOCAL_SEARCH},
             sort_keys=True, separators=(",", ":"),
         )
@@ -225,13 +233,13 @@ def main() -> int:
         # 1) Baseline: config goc, chay CUNG cac seed de ghep cap (instance, seed)
         for seed in seeds:
             record(inst_path, instance, baseline_tenure, baseline_cand,
-                   seed, "baseline", "baseline")
+                   BASELINE_NUM_TARGET, seed, "baseline", "baseline")
         # 2) Luoi config: moi config x moi seed
-        for tenure, max_candidates in configs:
-            config_name = f"tenure{tenure}_cand{max_candidates}"
+        for tenure, max_candidates, num_target in configs:
+            config_name = f"tenure{tenure}_cand{max_candidates}_tgt{num_target}"
             for seed in seeds:
                 record(inst_path, instance, tenure, max_candidates,
-                       seed, config_name, "grid")
+                       num_target, seed, config_name, "grid")
 
     # ghi CSV
     with csv_path.open("w", newline="", encoding="utf-8") as f:
@@ -371,13 +379,16 @@ def main() -> int:
             "top_k": args.top_k,
             # Khong gian config da thu cua Tabu Search
             "tabu_configs": [
-                {"name": f"tenure{t}_cand{c}", "tenure": t, "max_candidates": c}
+                {"name": f"tenure{t}_cand{c}_tgt{g}", "tenure": t,
+                 "max_candidates": c, "num_target_routes": g}
                 for t in TENURE_VALUES for c in MAX_CANDIDATES_VALUES
+                for g in NUM_TARGET_ROUTES_VALUES
             ],
             "baseline_config": {
-                "name": f"tenure{BASELINE_TENURE}_cand{BASELINE_CANDIDATES}",
+                "name": f"tenure{BASELINE_TENURE}_cand{BASELINE_CANDIDATES}_tgt{BASELINE_NUM_TARGET}",
                 "tenure": BASELINE_TENURE,
                 "max_candidates": BASELINE_CANDIDATES,
+                "num_target_routes": BASELINE_NUM_TARGET,
             },
             "use_local_search": USE_LOCAL_SEARCH,
             # Giao thuc danh gia - giong het ALNS (chuan chung nhom)
@@ -400,6 +411,7 @@ def main() -> int:
                 "config_name": bname,
                 "tenure": int(bname.split("_")[0].replace("tenure", "")),
                 "max_candidates": int(bname.split("_")[1].replace("cand", "")),
+                "num_target_routes": int(bname.split("_")[2].replace("tgt", "")),
                 "mean_relative_max_route": best["mean_relative_max_route"],
                 "win_rate": best["win_rate"],
                 "mean_max_route_improvement_pct": best["mean_max_route_improvement_pct"],

@@ -36,11 +36,12 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--time-limit", type=float, default=10.0)
     parser.add_argument("--seed", type=int, default=99)
     parser.add_argument("--local-search", action="store_true", help="Enable Tabu post-optimization")
-    parser.add_argument("--q-min-ratio", type=float, default=0.02)
-    parser.add_argument("--q-max-ratio", type=float, default=0.10)
+    parser.add_argument("--q-min-ratio", type=float)
+    parser.add_argument("--q-max-ratio", type=float)
     parser.add_argument("--initial-temperature", type=float, default=300.0)
-    parser.add_argument("--cooling-rate", type=float, default=0.999)
-    parser.add_argument("--segment-length", type=int, default=50)
+    parser.add_argument("--cooling-rate", type=float)
+    parser.add_argument("--reaction", type=float)
+    parser.add_argument("--segment-length", type=int)
     parser.add_argument("--reward-global-best", type=float, default=10.0)
     parser.add_argument("--reward-current-improved", type=float, default=5.0)
     parser.add_argument("--reward-accepted", type=float, default=2.0)
@@ -67,6 +68,7 @@ def main(argv: list[str] | None = None) -> int:
         q_max_ratio=args.q_max_ratio,
         initial_temperature=args.initial_temperature,
         cooling_rate=args.cooling_rate,
+        reaction=args.reaction,
         segment_length=args.segment_length,
         reward_global_best=args.reward_global_best,
         reward_current_improved=args.reward_current_improved,
@@ -95,6 +97,10 @@ def main(argv: list[str] | None = None) -> int:
     print(f"route_lengths: {' '.join(format_distance(value) for value in lengths)}")
     print(f"runtime: {result.runtime:.6f}s")
     print(f"iterations: {result.iterations}")
+    if result.algorithm == "alns" and "config" in result.stats:
+        print(f"alns_config: {result.stats['config']}")
+    if result.algorithm == "tabu_search" and "config" in result.stats:
+        print(f"tabu_config: {result.stats['config']}")
     if args.output:
         print(f"solution: {args.output}")
     return 0

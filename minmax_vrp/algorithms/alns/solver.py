@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import random
 import time
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 
 from ...models import Instance, Objective, Solution
 from ..route_constraints import has_positive_route_lengths
@@ -28,12 +28,12 @@ from .operators.removal import (
 class ALNSConfig:
     time_limit: float = 10.0
     seed: int = 99
-    q_min_ratio: float = 0.02
-    q_max_ratio: float = 0.10
+    q_min_ratio: float | None = None
+    q_max_ratio: float | None = None
     initial_temperature: float = 300.0
-    cooling_rate: float = 0.999
-    reaction: float = 0.20
-    segment_length: int = 50
+    cooling_rate: float | None = None
+    reaction: float | None = None
+    segment_length: int | None = None
     require_positive_route_lengths: bool = True
     use_local_search: bool = False
     max_iterations: int = 1_000_000
@@ -46,17 +46,21 @@ class ALNSConfig:
     def __post_init__(self) -> None:
         if self.time_limit < 0.0:
             raise ValueError("time_limit must be non-negative")
-        if self.q_min_ratio < 0.0:
+        if self.q_min_ratio is not None and self.q_min_ratio < 0.0:
             raise ValueError("q_min_ratio must be non-negative")
-        if self.q_max_ratio < self.q_min_ratio:
+        if (
+            self.q_min_ratio is not None
+            and self.q_max_ratio is not None
+            and self.q_max_ratio < self.q_min_ratio
+        ):
             raise ValueError("q_max_ratio must be greater than or equal to q_min_ratio")
         if self.initial_temperature < 0.0:
             raise ValueError("initial_temperature must be non-negative")
-        if not 0.0 < self.cooling_rate <= 1.0:
+        if self.cooling_rate is not None and not 0.0 < self.cooling_rate <= 1.0:
             raise ValueError("cooling_rate must be in (0, 1]")
-        if not 0.0 <= self.reaction <= 1.0:
+        if self.reaction is not None and not 0.0 <= self.reaction <= 1.0:
             raise ValueError("reaction must be in [0, 1]")
-        if self.segment_length <= 0:
+        if self.segment_length is not None and self.segment_length <= 0:
             raise ValueError("segment_length must be positive")
         if self.max_iterations <= 0:
             raise ValueError("max_iterations must be positive")
@@ -69,6 +73,59 @@ class ALNSConfig:
         if any(reward < 0.0 for reward in rewards):
             raise ValueError("ALNS rewards must be non-negative")
 
+    def with_size_defaults(self, n: int) -> ALNSConfig:
+        defaults = recommended_alns_defaults(n)
+        return replace(
+            self,
+            q_min_ratio=self.q_min_ratio
+            if self.q_min_ratio is not None
+            else defaults["q_min_ratio"],
+            q_max_ratio=self.q_max_ratio
+            if self.q_max_ratio is not None
+            else defaults["q_max_ratio"],
+            cooling_rate=self.cooling_rate
+            if self.cooling_rate is not None
+            else defaults["cooling_rate"],
+            reaction=self.reaction if self.reaction is not None else defaults["reaction"],
+            segment_length=self.segment_length
+            if self.segment_length is not None
+            else defaults["segment_length"],
+        )
+
+
+def recommended_alns_defaults(n: int) -> dict[str, float | int]:
+    if n <= 100:
+        return {
+            "q_min_ratio": 0.03,
+            "q_max_ratio": 0.10,
+            "cooling_rate": 0.999,
+            "reaction": 0.10,
+            "segment_length": 50,
+        }
+    if n <= 300:
+        return {
+            "q_min_ratio": 0.01,
+            "q_max_ratio": 0.05,
+            "cooling_rate": 0.999,
+            "reaction": 0.10,
+            "segment_length": 50,
+        }
+    if n <= 700:
+        return {
+            "q_min_ratio": 0.005,
+            "q_max_ratio": 0.03,
+            "cooling_rate": 0.9995,
+            "reaction": 0.10,
+            "segment_length": 100,
+        }
+    return {
+        "q_min_ratio": 0.003,
+        "q_max_ratio": 0.02,
+        "cooling_rate": 0.999,
+        "reaction": 0.10,
+        "segment_length": 100,
+    }
+
 
 @dataclass
 class ALNSResult:
@@ -78,6 +135,7 @@ class ALNSResult:
     best_objective: Objective
     destroy_weights: dict[str, float]
     repair_weights: dict[str, float]
+    config: dict[str, float | int]
 
 
 class ALNSSolver:
@@ -88,32 +146,33 @@ class ALNSSolver:
 
     def solve(self, instance: Instance, initial: Solution | None = None) -> ALNSResult:
         start = time.perf_counter()
-        if self.config.require_positive_route_lengths and instance.n < instance.k:
+        config = self.config.with_size_defaults(instance.n)
+        if config.require_positive_route_lengths and instance.n < instance.k:
             raise ValueError(
                 "ALNS requires every vehicle to have a positive-length route; "
                 f"got n={instance.n}, k={instance.k}"
             )
 
         core_instance = _to_alns_instance(instance)
-        rng = random.Random(self.config.seed)
+        rng = random.Random(config.seed)
         current = _to_alns_solution(core_instance, initial) if initial else balanced_nearest_seed(core_instance, rng)
-        current.validate(strict_use_all_routes=self.config.require_positive_route_lengths)
+        current.validate(strict_use_all_routes=config.require_positive_route_lengths)
 
-        alns = self._build_alns(core_instance)
+        alns = self._build_alns(core_instance, config)
         stop = StopCriteria(
-            max_iterations=self.config.max_iterations,
-            max_seconds=self.config.time_limit,
+            max_iterations=config.max_iterations,
+            max_seconds=config.time_limit,
         )
         acceptance = SimulatedAnnealing(
-            start_temperature=self.config.initial_temperature,
-            cooling_rate=self.config.cooling_rate,
+            start_temperature=config.initial_temperature,
+            cooling_rate=float(config.cooling_rate),
         )
         result = alns.iterate(current, stop, acceptance, collect_history=False)
         best = _to_project_solution(result.best)
 
-        if self.config.require_positive_route_lengths and not has_positive_route_lengths(best, instance):
+        if config.require_positive_route_lengths and not has_positive_route_lengths(best, instance):
             best = _to_project_solution(_ensure_all_routes_used(result.best))
-        if self.config.require_positive_route_lengths and not has_positive_route_lengths(best, instance):
+        if config.require_positive_route_lengths and not has_positive_route_lengths(best, instance):
             raise ValueError(
                 "ALNS requires every vehicle to have a positive-length route; "
                 f"got n={instance.n}, k={instance.k}"
@@ -128,13 +187,14 @@ class ALNSSolver:
             best_objective=best.evaluate(instance).as_tuple(),
             destroy_weights=dict(result.destroy_weights),
             repair_weights=dict(result.repair_weights),
+            config=_config_dict(config),
         )
 
-    def _build_alns(self, instance: ALNSInstance) -> ALNS:
-        min_remove = max(1, min(instance.n, int(self.config.q_min_ratio * instance.n)))
+    def _build_alns(self, instance: ALNSInstance, config: ALNSConfig) -> ALNS:
+        min_remove = max(1, min(instance.n, int(float(config.q_min_ratio) * instance.n)))
         destroy_config = DestroyConfig(
             min_remove=min_remove,
-            max_remove_fraction=self.config.q_max_ratio,
+            max_remove_fraction=float(config.q_max_ratio),
         )
         destroys = [
             RandomRemoval(destroy_config),
@@ -151,26 +211,41 @@ class ALNSSolver:
 
         def local(solution: ALNSSolution, rng: random.Random) -> ALNSSolution:
             candidate = solution
-            if self.config.use_local_search:
+            if config.use_local_search:
                 candidate = improve_by_relocate(candidate, max_checks=1500, rng=rng)
-            if self.config.require_positive_route_lengths:
+            if config.require_positive_route_lengths:
                 candidate = _ensure_all_routes_used(candidate)
             return candidate
 
         return ALNS(
             destroys,
             repairs,
-            rng=random.Random(self.config.seed),
-            reaction=self.config.reaction,
-            segment_length=self.config.segment_length,
+            rng=random.Random(config.seed),
+            reaction=float(config.reaction),
+            segment_length=int(config.segment_length),
             scores=(
-                self.config.reward_global_best,
-                self.config.reward_current_improved,
-                self.config.reward_accepted,
-                self.config.reward_rejected,
+                config.reward_global_best,
+                config.reward_current_improved,
+                config.reward_accepted,
+                config.reward_rejected,
             ),
             local_search=local,
         )
+
+
+def _config_dict(config: ALNSConfig) -> dict[str, float | int]:
+    return {
+        "q_min_ratio": float(config.q_min_ratio),
+        "q_max_ratio": float(config.q_max_ratio),
+        "initial_temperature": config.initial_temperature,
+        "cooling_rate": float(config.cooling_rate),
+        "reaction": float(config.reaction),
+        "segment_length": int(config.segment_length),
+        "reward_global_best": config.reward_global_best,
+        "reward_current_improved": config.reward_current_improved,
+        "reward_accepted": config.reward_accepted,
+        "reward_rejected": config.reward_rejected,
+    }
 
 
 def _to_alns_instance(instance: Instance) -> ALNSInstance:

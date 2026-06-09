@@ -8,6 +8,14 @@ from ..route_constraints import ensure_positive_route_lengths
 from .tabu_search import local_clear, tabu_search
 
 
+TUNED_TABU_CONFIG = {
+    "tenure": 15,
+    "max_candidates": 100,
+    "num_target_routes": 20,
+    "use_local_search": True,
+}
+
+
 class TabuSearchAlgorithm(SolverAlgorithm):
     name = "tabu_search"
 
@@ -22,9 +30,13 @@ class TabuSearchAlgorithm(SolverAlgorithm):
             instance.k,
             instance.distance,
             max_inter=max_iterations,
+            tenure=TUNED_TABU_CONFIG["tenure"],
+            max_candidates=TUNED_TABU_CONFIG["max_candidates"],
             deadline=start + max(0.0, self.config.time_limit),
+            seed=self.config.seed,
+            num_target_routes=TUNED_TABU_CONFIG["num_target_routes"],
         )
-        if self.config.use_local_search:
+        if self.config.use_local_search or TUNED_TABU_CONFIG["use_local_search"]:
             routes = local_clear(
                 routes,
                 instance.distance,
@@ -40,5 +52,5 @@ class TabuSearchAlgorithm(SolverAlgorithm):
             runtime=runtime,
             iterations=iterations_done,
             best_objective=solution.evaluate(instance).as_tuple(),
-            stats={"source": "tabu_search"},
+            stats={"source": "tabu_search", "config": TUNED_TABU_CONFIG},
         )

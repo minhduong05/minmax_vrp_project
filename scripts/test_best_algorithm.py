@@ -34,14 +34,16 @@ DEFAULT_INSTANCE_FILE = "data/splits/test_seed02_seed03.txt"
 DEFAULT_OUTPUT_DIR = "output/algorithm_comparison"
 
 BEST_ALNS_CONFIG = {
-    "q_min_ratio": 0.02,
-    "q_max_ratio": 0.10,
+    "size_adaptive": True,
+    "buckets": {
+        "S": {"n": "N <= 100", "q_min_ratio": 0.03, "q_max_ratio": 0.10, "cooling_rate": 0.999, "segment_length": 50},
+        "M": {"n": "100 < N <= 300", "q_min_ratio": 0.01, "q_max_ratio": 0.05, "cooling_rate": 0.999, "segment_length": 50},
+        "L": {"n": "300 < N <= 700", "q_min_ratio": 0.005, "q_max_ratio": 0.03, "cooling_rate": 0.9995, "segment_length": 100},
+        "XL": {"n": "N > 700", "q_min_ratio": 0.003, "q_max_ratio": 0.02, "cooling_rate": 0.999, "segment_length": 100},
+    },
     "initial_temperature": 300.0,
-    "cooling_rate": 0.999,
-    "reward_global_best": 10.0,
-    "reward_current_improved": 5.0,
-    "reward_accepted": 2.0,
-    "reward_rejected": 0.0,
+    "reaction": 0.10,
+    "reward": [10.0, 5.0, 2.0, 0.0],
 }
 
 BEST_VNS_CONFIG = {
@@ -52,6 +54,7 @@ BEST_VNS_CONFIG = {
 BEST_TABU_CONFIG = {
     "tenure": 15,
     "max_candidates": 100,
+    "num_target_routes": 20,
     "use_local_search": True,
 }
 
@@ -172,11 +175,11 @@ def data_seed_from_path(path: str) -> str:
 
 def config_name(algorithm: str) -> str:
     if algorithm == "alns":
-        return "small_destroy__strict__exploration_friendly"
+        return "size_adaptive_minimal_tuned"
     if algorithm == "vns":
         return "shake7__cand24"
     if algorithm == "tabu_search":
-        return "tenure15_cand100"
+        return "tenure15_cand100_tgt20"
     raise ValueError(algorithm)
 
 
@@ -193,7 +196,7 @@ def config_json(algorithm: str) -> str:
 
 
 def solve_alns(instance: Instance, time_limit: float, seed: int):
-    config = ALNSConfig(time_limit=time_limit, seed=seed, **BEST_ALNS_CONFIG)
+    config = ALNSConfig(time_limit=time_limit, seed=seed)
     result = ALNSSolver(config).solve(instance)
     return result.best, result.runtime, result.iterations
 
@@ -220,7 +223,6 @@ def solve_vns(instance: Instance, time_limit: float, seed: int):
 
 
 def solve_tabu_search(instance: Instance, time_limit: float, seed: int):
-    del seed  # Current Tabu implementation is deterministic.
     max_iterations = max(1, int(max(0.01, time_limit) * 200))
     start = time.perf_counter()
     routes, _, iterations_done = tabu_search(
@@ -231,6 +233,8 @@ def solve_tabu_search(instance: Instance, time_limit: float, seed: int):
         tenure=BEST_TABU_CONFIG["tenure"],
         max_candidates=BEST_TABU_CONFIG["max_candidates"],
         deadline=start + max(0.0, time_limit),
+        seed=seed,
+        num_target_routes=BEST_TABU_CONFIG["num_target_routes"],
     )
     if BEST_TABU_CONFIG["use_local_search"]:
         routes = local_clear(routes, instance.distance)

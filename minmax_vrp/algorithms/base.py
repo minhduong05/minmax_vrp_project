@@ -11,12 +11,13 @@ class AlgorithmConfig:
     seed: int = 99
     use_local_search: bool = False
 
-    q_min_ratio: float = 0.02
-    q_max_ratio: float = 0.10
+    q_min_ratio: float | None = None
+    q_max_ratio: float | None = None
 
     initial_temperature: float = 300.0
-    cooling_rate: float = 0.999
-    segment_length: int = 50
+    cooling_rate: float | None = None
+    reaction: float | None = None
+    segment_length: int | None = None
 
     reward_global_best: float = 10.0
     reward_current_improved: float = 5.0

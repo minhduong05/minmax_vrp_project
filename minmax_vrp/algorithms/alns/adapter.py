@@ -20,6 +20,7 @@ class ALNSAlgorithm(SolverAlgorithm):
                 q_max_ratio=self.config.q_max_ratio,
                 initial_temperature=self.config.initial_temperature,
                 cooling_rate=self.config.cooling_rate,
+                reaction=self.config.reaction,
                 segment_length=self.config.segment_length,
                 reward_global_best=self.config.reward_global_best,
                 reward_current_improved=self.config.reward_current_improved,
@@ -38,5 +39,6 @@ class ALNSAlgorithm(SolverAlgorithm):
             stats={
                 "destroy_weights": result.destroy_weights,
                 "repair_weights": result.repair_weights,
+                "config": result.config,
             },
         )

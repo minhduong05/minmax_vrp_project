@@ -28,4 +28,6 @@ Thumbs.db
 *.bak
 
 # Local run artifacts
+output/
 outputs/
+solution.txt

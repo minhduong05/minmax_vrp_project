@@ -113,3 +113,20 @@ def test_alns_config_rejects_invalid_segment_length():
 def test_alns_config_rejects_inverted_destroy_range():
     with pytest.raises(ValueError, match="q_max_ratio"):
         ALNSConfig(q_min_ratio=0.2, q_max_ratio=0.1)
+
+
+def test_alns_config_uses_tuned_size_defaults():
+    expected = [
+        (100, 0.03, 0.10, 0.999, 50),
+        (300, 0.01, 0.05, 0.999, 50),
+        (500, 0.005, 0.03, 0.9995, 100),
+        (1000, 0.003, 0.02, 0.999, 100),
+    ]
+
+    for n, q_min_ratio, q_max_ratio, cooling_rate, segment_length in expected:
+        config = ALNSConfig().with_size_defaults(n)
+        assert config.q_min_ratio == q_min_ratio
+        assert config.q_max_ratio == q_max_ratio
+        assert config.cooling_rate == cooling_rate
+        assert config.reaction == 0.10
+        assert config.segment_length == segment_length

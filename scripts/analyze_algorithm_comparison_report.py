@@ -384,7 +384,7 @@ Phần thực nghiệm so sánh ba thuật toán sau khi đã cố định cấu
 \toprule
 Thuật toán & Tên cấu hình & Tham số chính \\
 \midrule
-ALNS & \texttt{{small\_destroy + strict + exploration\_friendly}} & $q_{{min}}=0.02$, $q_{{max}}=0.10$, $T_0=300$, $\alpha=0.999$, reward $(10,5,2,0)$ \\
+ALNS & \texttt{{size\_adaptive\_minimal\_tuned}} & $T_0=300$, reaction $=0.10$, reward $(10,5,2,0)$; remove fraction/cooling/segment chon theo nhom $N$ \\
 VNS & \texttt{{shake7 + cand24}} & max shake level $=7$, candidate limit $=24$ \\
 Tabu Search & \texttt{{tenure15 + cand100}} & tenure $=15$, candidate limit $=100$, local search bật \\
 \bottomrule
